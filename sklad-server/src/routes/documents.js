@@ -1,16 +1,15 @@
 import express from 'express';
 import { pool } from '../db/pool.js';
+import { getWarehouseId, getLimit } from '../utils/request.js';
+import { httpError } from '../utils/httpError.js';
 
 const router = express.Router();
 
-function getWarehouseId(req) {
-  return Number(req.query.warehouseId || 1);
-}
+const INVALID_DOCUMENT_ITEM_MESSAGE =
+  'Každá položka musí mít platné itemId a quantity větší než 0.';
 
-function getLimit(req) {
-  const limit = Number(req.query.limit || 20);
-  return Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : 20;
-}
+const INVALID_ORIGINAL_DOCUMENT_ITEM_MESSAGE =
+  'Původní položka dokladu nemá platné itemId a quantity.';
 
 async function getMovementTypeByCode(client, code) {
   const result = await client.query(
@@ -25,9 +24,7 @@ async function getMovementTypeByCode(client, code) {
   );
 
   if (result.rows.length === 0) {
-    const error = new Error(`Typ pohybu ${code} nebyl nalezen.`);
-    error.statusCode = 400;
-    throw error;
+    throw httpError(400, `Typ pohybu ${code} nebyl nalezen.`);
   }
 
   return result.rows[0];
@@ -59,6 +56,107 @@ async function generateDocumentNumber(client, movementTypeCode) {
   const nextNumber = result.rows[0].count + 1;
 
   return `${documentPrefix}${String(nextNumber).padStart(4, '0')}`;
+}
+
+function validateUserId(userId) {
+  if (!userId) {
+    throw httpError(400, 'userId je povinné.');
+  }
+}
+
+function normalizeDocumentItem(
+  item,
+  errorMessage = INVALID_DOCUMENT_ITEM_MESSAGE
+) {
+  const itemId = Number(item.itemId ?? item.item_id);
+  const quantity = Number(item.quantity);
+
+  if (!itemId || !quantity || quantity <= 0) {
+    throw httpError(400, errorMessage);
+  }
+
+  return {
+    itemId,
+    quantity,
+    note: item.note || null
+  };
+}
+
+function validateDocumentItems(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw httpError(400, 'Doklad musí obsahovat alespoň jednu položku.');
+  }
+
+  return items.map((item) => normalizeDocumentItem(item));
+}
+
+function getMovementDelta(movementDirection, quantity) {
+  if (movementDirection === 'IN') {
+    return quantity;
+  }
+
+  if (movementDirection === 'OUT') {
+    return -quantity;
+  }
+
+  throw httpError(400, 'Typ pohybu není podporovaný.');
+}
+
+async function getWarehouseItemQuantityForUpdate(client, warehouseId, itemId) {
+  const stockResult = await client.query(
+    `
+    SELECT quantity
+    FROM warehouse_items
+    WHERE warehouse_id = $1
+      AND item_id = $2
+    FOR UPDATE
+    `,
+    [warehouseId, itemId]
+  );
+
+  if (stockResult.rows.length === 0) {
+    throw httpError(404, `Položka ID ${itemId} není v tomto skladu.`);
+  }
+
+  return Number(stockResult.rows[0].quantity);
+}
+
+async function updateWarehouseItemQuantity(client, warehouseId, itemId, newQuantity) {
+  await client.query(
+    `
+    UPDATE warehouse_items
+    SET quantity = $1,
+        updated_at = NOW()
+    WHERE warehouse_id = $2
+      AND item_id = $3
+    `,
+    [newQuantity, warehouseId, itemId]
+  );
+}
+
+async function applyWarehouseDelta(client, warehouseId, itemId, delta) {
+  if (delta === 0) {
+    return;
+  }
+
+  const currentQuantity = await getWarehouseItemQuantityForUpdate(
+    client,
+    warehouseId,
+    itemId
+  );
+
+  const newQuantity = currentQuantity + delta;
+
+  if (newQuantity < 0) {
+    throw httpError(400, `Nedostatečné množství na skladě pro položku ID ${itemId}.`);
+  }
+
+  await updateWarehouseItemQuantity(
+    client,
+    warehouseId,
+    itemId,
+    newQuantity
+  );
 }
 
 async function getDocumentDetail(documentId) {
@@ -127,74 +225,38 @@ async function getDocumentDetail(documentId) {
   };
 }
 
-async function applyDocumentImpact(client, warehouseId, movementDirection, items, reverse = false) {
-  for (const item of items) {
-    const itemId = Number(item.itemId ?? item.item_id);
-    const quantity = Number(item.quantity);
+async function applyDocumentImpact(
+  client,
+  warehouseId,
+  movementDirection,
+  items,
+  reverse = false
+) {
+  const normalizedItems = items.map((item) => normalizeDocumentItem(item));
 
-    if (!itemId || !quantity || quantity <= 0) {
-      const error = new Error('Každá položka musí mít platné itemId a quantity větší než 0.');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    const stockResult = await client.query(
-      `
-      SELECT quantity
-      FROM warehouse_items
-      WHERE warehouse_id = $1
-        AND item_id = $2
-      FOR UPDATE
-      `,
-      [warehouseId, itemId]
-    );
-
-    if (stockResult.rows.length === 0) {
-      const error = new Error(`Položka ID ${itemId} není v tomto skladu.`);
-      error.statusCode = 404;
-      throw error;
-    }
-
-    const currentQuantity = Number(stockResult.rows[0].quantity);
-
-    let delta = 0;
-
-    if (movementDirection === 'IN') {
-      delta = quantity;
-    } else if (movementDirection === 'OUT') {
-      delta = -quantity;
-    } else {
-      const error = new Error('Typ pohybu NEUTRAL zatím není podporovaný.');
-      error.statusCode = 400;
-      throw error;
-    }
+  for (const item of normalizedItems) {
+    let delta = getMovementDelta(movementDirection, item.quantity);
 
     if (reverse) {
       delta *= -1;
     }
 
-    const newQuantity = currentQuantity + delta;
-
-    if (newQuantity < 0) {
-      const error = new Error(`Nedostatečné množství na skladě pro položku ID ${itemId}.`);
-      error.statusCode = 400;
-      throw error;
-    }
-
-    await client.query(
-      `
-      UPDATE warehouse_items
-      SET quantity = $1,
-          updated_at = NOW()
-      WHERE warehouse_id = $2
-        AND item_id = $3
-      `,
-      [newQuantity, warehouseId, itemId]
+    await applyWarehouseDelta(
+      client,
+      warehouseId,
+      item.itemId,
+      delta
     );
   }
 }
 
-async function applyDocumentNetImpact(client, warehouseId, movementDirection, oldItems, newItems) {
+async function applyDocumentNetImpact(
+  client,
+  warehouseId,
+  movementDirection,
+  oldItems,
+  newItems
+) {
   const deltasByItemId = new Map();
 
   function addDelta(itemId, delta) {
@@ -202,88 +264,61 @@ async function applyDocumentNetImpact(client, warehouseId, movementDirection, ol
     deltasByItemId.set(itemId, current + delta);
   }
 
-  for (const item of oldItems) {
-    const itemId = Number(item.itemId ?? item.item_id);
-    const quantity = Number(item.quantity);
+  const normalizedOldItems = oldItems.map((item) =>
+    normalizeDocumentItem(
+      item,
+      INVALID_ORIGINAL_DOCUMENT_ITEM_MESSAGE
+    )
+  );
 
-    if (!itemId || !quantity || quantity <= 0) {
-      const error = new Error('Původní položka dokladu nemá platné itemId a quantity.');
-      error.statusCode = 400;
-      throw error;
-    }
+  const normalizedNewItems = newItems.map((item) =>
+    normalizeDocumentItem(item)
+  );
 
-    if (movementDirection === 'IN') {
-      addDelta(itemId, -quantity);
-    } else if (movementDirection === 'OUT') {
-      addDelta(itemId, quantity);
-    } else {
-      const error = new Error('Typ pohybu NEUTRAL zatím není podporovaný.');
-      error.statusCode = 400;
-      throw error;
-    }
+  for (const item of normalizedOldItems) {
+    addDelta(
+      item.itemId,
+      -getMovementDelta(movementDirection, item.quantity)
+    );
   }
 
-  for (const item of newItems) {
-    const itemId = Number(item.itemId ?? item.item_id);
-    const quantity = Number(item.quantity);
-
-    if (!itemId || !quantity || quantity <= 0) {
-      const error = new Error('Každá položka musí mít platné itemId a quantity větší než 0.');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (movementDirection === 'IN') {
-      addDelta(itemId, quantity);
-    } else if (movementDirection === 'OUT') {
-      addDelta(itemId, -quantity);
-    } else {
-      const error = new Error('Typ pohybu NEUTRAL zatím není podporovaný.');
-      error.statusCode = 400;
-      throw error;
-    }
+  for (const item of normalizedNewItems) {
+    addDelta(
+      item.itemId,
+      getMovementDelta(movementDirection, item.quantity)
+    );
   }
 
   for (const [itemId, delta] of deltasByItemId.entries()) {
-    if (delta === 0) {
-      continue;
-    }
-
-    const stockResult = await client.query(
-      `
-      SELECT quantity
-      FROM warehouse_items
-      WHERE warehouse_id = $1
-        AND item_id = $2
-      FOR UPDATE
-      `,
-      [warehouseId, itemId]
+    await applyWarehouseDelta(
+      client,
+      warehouseId,
+      itemId,
+      delta
     );
+  }
+}
 
-    if (stockResult.rows.length === 0) {
-      const error = new Error(`Položka ID ${itemId} není v tomto skladu.`);
-      error.statusCode = 404;
-      throw error;
-    }
-
-    const currentQuantity = Number(stockResult.rows[0].quantity);
-    const newQuantity = currentQuantity + delta;
-
-    if (newQuantity < 0) {
-      const error = new Error(`Nedostatečné množství na skladě pro položku ID ${itemId}.`);
-      error.statusCode = 400;
-      throw error;
-    }
-
+async function insertDocumentItems(client, documentId, items) {
+  for (const item of items) {
     await client.query(
       `
-      UPDATE warehouse_items
-      SET quantity = $1,
-          updated_at = NOW()
-      WHERE warehouse_id = $2
-        AND item_id = $3
+      INSERT INTO stock_document_items (
+        document_id,
+        item_id,
+        quantity,
+        note,
+        created_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, NOW(), NOW())
       `,
-      [newQuantity, warehouseId, itemId]
+      [
+        documentId,
+        item.itemId,
+        item.quantity,
+        item.note
+      ]
     );
   }
 }
@@ -299,17 +334,8 @@ async function createDocument({ movementTypeCode, body }) {
       items = []
     } = body;
 
-    if (!userId) {
-      const error = new Error('userId je povinné.');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (!Array.isArray(items) || items.length === 0) {
-      const error = new Error('Doklad musí obsahovat alespoň jednu položku.');
-      error.statusCode = 400;
-      throw error;
-    }
+    validateUserId(userId);
+    const normalizedItems = validateDocumentItems(items);
 
     await client.query('BEGIN');
 
@@ -320,7 +346,7 @@ async function createDocument({ movementTypeCode, body }) {
       client,
       warehouseId,
       movementType.direction,
-      items,
+      normalizedItems,
       false
     );
 
@@ -351,27 +377,11 @@ async function createDocument({ movementTypeCode, body }) {
 
     const documentId = documentResult.rows[0].id;
 
-    for (const item of items) {
-      await client.query(
-        `
-        INSERT INTO stock_document_items (
-          document_id,
-          item_id,
-          quantity,
-          note,
-          created_at,
-          updated_at
-        )
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
-        `,
-        [
-          documentId,
-          Number(item.itemId ?? item.item_id),
-          Number(item.quantity),
-          item.note || null
-        ]
-      );
-    }
+    await insertDocumentItems(
+      client,
+      documentId,
+      normalizedItems
+    );
 
     await client.query('COMMIT');
 
@@ -394,17 +404,8 @@ async function updateDocument(documentId, body) {
       items = []
     } = body;
 
-    if (!userId) {
-      const error = new Error('userId je povinné.');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (!Array.isArray(items) || items.length === 0) {
-      const error = new Error('Doklad musí obsahovat alespoň jednu položku.');
-      error.statusCode = 400;
-      throw error;
-    }
+    validateUserId(userId);
+    const normalizedItems = validateDocumentItems(items);
 
     await client.query('BEGIN');
 
@@ -424,17 +425,13 @@ async function updateDocument(documentId, body) {
     );
 
     if (documentResult.rows.length === 0) {
-      const error = new Error('Doklad nebyl nalezen.');
-      error.statusCode = 404;
-      throw error;
+      throw httpError(404, 'Doklad nebyl nalezen.');
     }
 
     const document = documentResult.rows[0];
 
     if (document.status !== 'CONFIRMED') {
-      const error = new Error('Upravovat lze zatím jen potvrzené doklady.');
-      error.statusCode = 400;
-      throw error;
+      throw httpError(400, 'Upravovat lze zatím jen potvrzené doklady.');
     }
 
     const oldItemsResult = await client.query(
@@ -447,11 +444,11 @@ async function updateDocument(documentId, body) {
     );
 
     await applyDocumentNetImpact(
-        client,
-        document.warehouse_id,
-        document.direction,
-        oldItemsResult.rows,
-        items
+      client,
+      document.warehouse_id,
+      document.direction,
+      oldItemsResult.rows,
+      normalizedItems
     );
 
     await client.query(
@@ -462,27 +459,11 @@ async function updateDocument(documentId, body) {
       [documentId]
     );
 
-    for (const item of items) {
-      await client.query(
-        `
-        INSERT INTO stock_document_items (
-          document_id,
-          item_id,
-          quantity,
-          note,
-          created_at,
-          updated_at
-        )
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
-        `,
-        [
-          documentId,
-          Number(item.itemId ?? item.item_id),
-          Number(item.quantity),
-          item.note || null
-        ]
-      );
-    }
+    await insertDocumentItems(
+      client,
+      documentId,
+      normalizedItems
+    );
 
     await client.query(
       `
@@ -562,7 +543,7 @@ router.get('/:id', async (req, res, next) => {
     const document = await getDocumentDetail(req.params.id);
 
     if (!document) {
-      return res.status(404).json({ message: 'Doklad nebyl nalezen.' });
+      throw httpError(404, 'Doklad nebyl nalezen.');
     }
 
     res.json(document);

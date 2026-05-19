@@ -3,8 +3,19 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { pool } from '../db/pool.js';
+import { getWarehouseId, getStringQuery } from '../utils/request.js';
+import { httpError } from '../utils/httpError.js';
 
 const router = express.Router();
+
+const ITEM_NOT_FOUND_MESSAGE = 'Položka nebyla nalezena.';
+const CODE_NOT_FOUND_MESSAGE = 'Kód nebyl nalezen.';
+const CODE_REQUIRED_MESSAGE = 'Kód je povinný.';
+const ITEM_NAME_REQUIRED_MESSAGE = 'Název položky je povinný.';
+const DUPLICATE_CODE_MESSAGE = 'Tento kód už existuje.';
+const DUPLICATE_CODE_OTHER_ITEM_MESSAGE = 'Tento kód už existuje u jiné položky.';
+const IMAGE_REQUIRED_MESSAGE = 'Soubor obrázku je povinný.';
+const INVALID_IMAGE_TYPE_MESSAGE = 'Podporované jsou jen obrázky JPG, PNG nebo WEBP.';
 
 const uploadDir = path.join(process.cwd(), 'uploads/items');
 
@@ -38,16 +49,12 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     if (!allowedImageMimeTypes.has(file.mimetype)) {
-      return cb(new Error('Podporované jsou jen obrázky JPG, PNG nebo WEBP.'));
+      return cb(new Error(INVALID_IMAGE_TYPE_MESSAGE));
     }
 
     cb(null, true);
   }
 });
-
-function getWarehouseId(req) {
-  return Number(req.query.warehouseId || 1);
-}
 
 const itemSelectSql = `
   SELECT
@@ -91,6 +98,44 @@ const itemGroupBySql = `
     w.id
 `;
 
+function validateItemName(name) {
+  if (!name || !String(name).trim()) {
+    throw httpError(400, ITEM_NAME_REQUIRED_MESSAGE);
+  }
+}
+
+function validateCode(code) {
+  if (!code || !String(code).trim()) {
+    throw httpError(400, CODE_REQUIRED_MESSAGE);
+  }
+}
+
+function deleteFileSilently(filePath) {
+  if (filePath) {
+    fs.unlink(filePath, () => {});
+  }
+}
+
+function deleteOldImageIfNeeded(oldImageFilename, newImagePath) {
+  if (!oldImageFilename) {
+    return;
+  }
+
+  const oldImagePath = path.join(uploadDir, oldImageFilename);
+
+  if (oldImagePath !== newImagePath) {
+    deleteFileSilently(oldImagePath);
+  }
+}
+
+function handleDuplicateCodeError(error, next, message = DUPLICATE_CODE_MESSAGE) {
+  if (error.code === '23505') {
+    return next(httpError(409, message));
+  }
+
+  return next(error);
+}
+
 async function getCodeTypeId(client, codeTypeCode = 'UNKNOWN') {
   const result = await client.query(
     `
@@ -117,12 +162,93 @@ async function getCodeTypeId(client, codeTypeCode = 'UNKNOWN') {
   );
 
   if (fallback.rows.length === 0) {
-    const error = new Error('Typ kódu UNKNOWN nebyl nalezen v databázi.');
-    error.statusCode = 500;
-    throw error;
+    throw httpError(500, 'Typ kódu UNKNOWN nebyl nalezen v databázi.');
   }
 
   return fallback.rows[0].id;
+}
+
+async function getFullItem(warehouseId, itemId, onlyActive = false) {
+  const activeCondition = onlyActive ? 'AND i.active = true' : '';
+
+  const result = await pool.query(
+    `
+    ${itemSelectSql}
+    WHERE wi.warehouse_id = $1
+      AND i.id = $2
+      ${activeCondition}
+    ${itemGroupBySql}
+    LIMIT 1
+    `,
+    [warehouseId, itemId]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function getActiveItemForUpdate(client, itemId) {
+  const result = await client.query(
+    `
+    SELECT id, image_filename
+    FROM items
+    WHERE id = $1
+      AND active = true
+    FOR UPDATE
+    `,
+    [itemId]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function ensureItemExists(client, itemId) {
+  const result = await client.query(
+    `
+    SELECT id
+    FROM items
+    WHERE id = $1
+    `,
+    [itemId]
+  );
+
+  if (result.rows.length === 0) {
+    throw httpError(404, ITEM_NOT_FOUND_MESSAGE);
+  }
+}
+
+async function insertItemCode(client, itemId, code, codeType = 'UNKNOWN') {
+  validateCode(code);
+
+  const codeTypeId = await getCodeTypeId(client, codeType);
+
+  const result = await client.query(
+    `
+    INSERT INTO item_codes (item_id, code, code_type_id)
+    VALUES ($1, $2, $3)
+    RETURNING *
+    `,
+    [itemId, code, codeTypeId]
+  );
+
+  return result.rows[0];
+}
+
+async function createWarehouseItem(
+  client,
+  warehouseId,
+  itemId,
+  quantity,
+  location,
+  minQuantity
+) {
+  await client.query(
+    `
+    INSERT INTO warehouse_items
+      (warehouse_id, item_id, quantity, location, min_quantity)
+    VALUES ($1, $2, $3, $4, $5)
+    `,
+    [warehouseId, itemId, quantity, location, minQuantity]
+  );
 }
 
 router.get('/', async (req, res, next) => {
@@ -149,7 +275,7 @@ router.get('/', async (req, res, next) => {
 router.get('/search', async (req, res, next) => {
   try {
     const warehouseId = getWarehouseId(req);
-    const query = String(req.query.q || '').trim();
+    const query = getStringQuery(req, 'q');
 
     if (query.length < 1) {
       return res.json([]);
@@ -206,7 +332,7 @@ router.get('/code/:code', async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Položka nebyla nalezena.' });
+      throw httpError(404, ITEM_NOT_FOUND_MESSAGE);
     }
 
     res.json(result.rows[0]);
@@ -223,30 +349,19 @@ router.post('/:id/image', upload.single('image'), async (req, res, next) => {
     const warehouseId = getWarehouseId(req);
 
     if (!req.file) {
-      return res.status(400).json({ message: 'Soubor obrázku je povinný.' });
+      throw httpError(400, IMAGE_REQUIRED_MESSAGE);
     }
 
     await client.query('BEGIN');
 
-    const itemResult = await client.query(
-      `
-      SELECT id, image_filename
-      FROM items
-      WHERE id = $1
-        AND active = true
-      FOR UPDATE
-      `,
-      [id]
-    );
+    const item = await getActiveItemForUpdate(client, id);
 
-    if (itemResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-
-      fs.unlink(req.file.path, () => {});
-      return res.status(404).json({ message: 'Položka nebyla nalezena.' });
+    if (!item) {
+      deleteFileSilently(req.file.path);
+      throw httpError(404, ITEM_NOT_FOUND_MESSAGE);
     }
 
-    const oldImageFilename = itemResult.rows[0].image_filename;
+    const oldImageFilename = item.image_filename;
 
     await client.query(
       `
@@ -260,31 +375,16 @@ router.post('/:id/image', upload.single('image'), async (req, res, next) => {
 
     await client.query('COMMIT');
 
-    if (oldImageFilename) {
-      const oldImagePath = path.join(uploadDir, oldImageFilename);
+    deleteOldImageIfNeeded(oldImageFilename, req.file.path);
 
-      if (oldImagePath !== req.file.path) {
-        fs.unlink(oldImagePath, () => {});
-      }
-    }
+    const fullItem = await getFullItem(warehouseId, id);
 
-    const fullItemResult = await pool.query(
-      `
-      ${itemSelectSql}
-      WHERE wi.warehouse_id = $1
-        AND i.id = $2
-      ${itemGroupBySql}
-      LIMIT 1
-      `,
-      [warehouseId, id]
-    );
-
-    res.json(fullItemResult.rows[0]);
+    res.json(fullItem);
   } catch (error) {
     await client.query('ROLLBACK');
 
     if (req.file?.path) {
-      fs.unlink(req.file.path, () => {});
+      deleteFileSilently(req.file.path);
     }
 
     next(error);
@@ -298,23 +398,13 @@ router.get('/:id', async (req, res, next) => {
     const warehouseId = getWarehouseId(req);
     const { id } = req.params;
 
-    const result = await pool.query(
-      `
-      ${itemSelectSql}
-      WHERE wi.warehouse_id = $1
-        AND i.active = true
-        AND i.id = $2
-      ${itemGroupBySql}
-      LIMIT 1
-      `,
-      [warehouseId, id]
-    );
+    const item = await getFullItem(warehouseId, id, true);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Položka nebyla nalezena.' });
+    if (!item) {
+      throw httpError(404, ITEM_NOT_FOUND_MESSAGE);
     }
 
-    res.json(result.rows[0]);
+    res.json(item);
   } catch (error) {
     next(error);
   }
@@ -337,9 +427,7 @@ router.post('/', async (req, res, next) => {
       minQuantity = 0
     } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ message: 'Název položky je povinný.' });
-    }
+    validateItemName(name);
 
     await client.query('BEGIN');
 
@@ -355,48 +443,26 @@ router.post('/', async (req, res, next) => {
     const item = itemResult.rows[0];
 
     if (code) {
-      const codeTypeId = await getCodeTypeId(client, codeType);
-
-      await client.query(
-        `
-        INSERT INTO item_codes (item_id, code, code_type_id)
-        VALUES ($1, $2, $3)
-        `,
-        [item.id, code, codeTypeId]
-      );
+      await insertItemCode(client, item.id, code, codeType);
     }
 
-    await client.query(
-      `
-      INSERT INTO warehouse_items
-        (warehouse_id, item_id, quantity, location, min_quantity)
-      VALUES ($1, $2, $3, $4, $5)
-      `,
-      [warehouseId, item.id, quantity, location, minQuantity]
+    await createWarehouseItem(
+      client,
+      warehouseId,
+      item.id,
+      quantity,
+      location,
+      minQuantity
     );
 
     await client.query('COMMIT');
 
-    const fullItemResult = await pool.query(
-      `
-      ${itemSelectSql}
-      WHERE wi.warehouse_id = $1
-        AND i.id = $2
-      ${itemGroupBySql}
-      LIMIT 1
-      `,
-      [warehouseId, item.id]
-    );
+    const fullItem = await getFullItem(warehouseId, item.id);
 
-    res.status(201).json(fullItemResult.rows[0]);
+    res.status(201).json(fullItem);
   } catch (error) {
     await client.query('ROLLBACK');
-
-    if (error.code === '23505') {
-      return res.status(409).json({ message: 'Tento kód už existuje u jiné položky.' });
-    }
-
-    next(error);
+    return handleDuplicateCodeError(error, next, DUPLICATE_CODE_OTHER_ITEM_MESSAGE);
   } finally {
     client.release();
   }
@@ -437,8 +503,7 @@ router.put('/:id', async (req, res, next) => {
     );
 
     if (itemResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Položka nebyla nalezena.' });
+      throw httpError(404, ITEM_NOT_FOUND_MESSAGE);
     }
 
     await client.query(
@@ -456,18 +521,9 @@ router.put('/:id', async (req, res, next) => {
 
     await client.query('COMMIT');
 
-    const fullItemResult = await pool.query(
-      `
-      ${itemSelectSql}
-      WHERE wi.warehouse_id = $1
-        AND i.id = $2
-      ${itemGroupBySql}
-      LIMIT 1
-      `,
-      [warehouseId, id]
-    );
+    const fullItem = await getFullItem(warehouseId, id);
 
-    res.json(fullItemResult.rows[0]);
+    res.json(fullItem);
   } catch (error) {
     await client.query('ROLLBACK');
     next(error);
@@ -486,48 +542,25 @@ router.post('/:id/codes', async (req, res, next) => {
       codeType = 'UNKNOWN'
     } = req.body;
 
-    if (!code) {
-      return res.status(400).json({ message: 'Kód je povinný.' });
-    }
+    validateCode(code);
 
     await client.query('BEGIN');
 
-    const itemResult = await client.query(
-      `
-      SELECT id
-      FROM items
-      WHERE id = $1
-      `,
-      [id]
-    );
+    await ensureItemExists(client, id);
 
-    if (itemResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Položka nebyla nalezena.' });
-    }
-
-    const codeTypeId = await getCodeTypeId(client, codeType);
-
-    const result = await client.query(
-      `
-      INSERT INTO item_codes (item_id, code, code_type_id)
-      VALUES ($1, $2, $3)
-      RETURNING *
-      `,
-      [id, code, codeTypeId]
+    const newCode = await insertItemCode(
+      client,
+      id,
+      code,
+      codeType
     );
 
     await client.query('COMMIT');
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(newCode);
   } catch (error) {
     await client.query('ROLLBACK');
-
-    if (error.code === '23505') {
-      return res.status(409).json({ message: 'Tento kód už existuje.' });
-    }
-
-    next(error);
+    return handleDuplicateCodeError(error, next, DUPLICATE_CODE_MESSAGE);
   } finally {
     client.release();
   }
@@ -550,7 +583,7 @@ router.delete('/:itemId/codes/:codeId', async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Kód nebyl nalezen.' });
+      throw httpError(404, CODE_NOT_FOUND_MESSAGE);
     }
 
     res.json({ message: 'Kód byl odebrán.' });
@@ -562,14 +595,14 @@ router.delete('/:itemId/codes/:codeId', async (req, res, next) => {
 router.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'Obrázek je moc velký. Maximum je 5 MB.' });
+      return next(httpError(400, 'Obrázek je moc velký. Maximum je 5 MB.'));
     }
 
-    return res.status(400).json({ message: error.message });
+    return next(httpError(400, error.message));
   }
 
-  if (error.message === 'Podporované jsou jen obrázky JPG, PNG nebo WEBP.') {
-    return res.status(400).json({ message: error.message });
+  if (error.message === INVALID_IMAGE_TYPE_MESSAGE) {
+    return next(httpError(400, error.message));
   }
 
   next(error);

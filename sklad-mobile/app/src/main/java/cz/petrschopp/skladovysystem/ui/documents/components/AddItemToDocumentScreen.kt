@@ -1,18 +1,11 @@
 package cz.petrschopp.skladovysystem.ui.documents.components
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,7 +13,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cz.petrschopp.skladovysystem.data.model.ItemDto
 import cz.petrschopp.skladovysystem.ui.documents.DocumentFormUiState
@@ -130,42 +122,24 @@ fun AddItemToDocumentScreen(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        LazyColumn(
+        BarcodeScanPanel(
+            title = "Přidat položku",
+            isSearching = uiState.isSearching,
+            cameraHeightDp = 420,
+            errorMessage = null,
+            onCodeScanned = { code ->
+                onScannedCode(code) { notFoundCode ->
+                    unknownCode = notFoundCode
+                }
+            },
+            onManualClick = {
+                manualInputVisible = true
+            },
+            onBackClick = onBack,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            item {
-                Text(
-                    text = "Přidat položku",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(560.dp)
-                ) {
-                    BarcodeScanPanel(
-                        isSearching = uiState.isSearching,
-                        onCodeScanned = { code ->
-                            onScannedCode(code) { notFoundCode ->
-                                unknownCode = notFoundCode
-                            }
-                        },
-                        onManualClick = {
-                            manualInputVisible = true
-                        },
-                        onBackClick = onBack
-                    )
-                }
-            }
-        }
+                .padding(16.dp)
+        )
 
         if (manualInputVisible) {
             ModalBottomSheet(

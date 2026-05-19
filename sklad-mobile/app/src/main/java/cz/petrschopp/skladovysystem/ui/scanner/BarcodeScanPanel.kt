@@ -1,5 +1,6 @@
 package cz.petrschopp.skladovysystem.ui.scanner
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,8 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -26,6 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cz.petrschopp.skladovysystem.ui.common.AppCard
+import cz.petrschopp.skladovysystem.ui.theme.WarehousePrimary
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseSurface
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseTextLight
 
 @Composable
 fun BarcodeScanPanel(
@@ -54,7 +58,7 @@ fun BarcodeScanPanel(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 104.dp),
+                .padding(bottom = 140.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (!title.isNullOrBlank()) {
@@ -65,7 +69,7 @@ fun BarcodeScanPanel(
                 )
             }
 
-            Card(
+            AppCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(
@@ -79,8 +83,7 @@ fun BarcodeScanPanel(
                         enabled = !detectedCode.isNullOrBlank() && !isSearching
                     ) {
                         confirmScan()
-                    },
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    }
             ) {
                 BarcodeCameraPreview(
                     modifier = Modifier.fillMaxSize(),
@@ -119,6 +122,14 @@ fun BarcodeScanPanel(
         ) {
             OutlinedButton(
                 onClick = onManualClick,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = WarehouseSurface,
+                    contentColor = WarehousePrimary
+                ),
+                border = BorderStroke(
+                    width = 1.5.dp,
+                    color = WarehousePrimary
+                ),
                 modifier = Modifier
                     .weight(1f)
                     .height(58.dp)
@@ -131,6 +142,12 @@ fun BarcodeScanPanel(
             Button(
                 onClick = { confirmScan() },
                 enabled = !detectedCode.isNullOrBlank() && !isSearching,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = WarehousePrimary,
+                    contentColor = WarehouseTextLight,
+                    disabledContainerColor = MaterialTheme.colorScheme.outline,
+                    disabledContentColor = WarehouseTextLight
+                ),
                 modifier = Modifier
                     .weight(1.45f)
                     .height(68.dp)
@@ -146,6 +163,14 @@ fun BarcodeScanPanel(
 
             OutlinedButton(
                 onClick = onBackClick,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = WarehouseSurface,
+                    contentColor = WarehousePrimary
+                ),
+                border = BorderStroke(
+                    width = 1.5.dp,
+                    color = WarehousePrimary
+                ),
                 modifier = Modifier
                     .weight(1f)
                     .height(58.dp)

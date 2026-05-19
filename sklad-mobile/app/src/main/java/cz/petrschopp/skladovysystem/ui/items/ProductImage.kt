@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,14 +13,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import cz.petrschopp.skladovysystem.data.remote.ApiUrls
+import cz.petrschopp.skladovysystem.ui.common.AppCard
 
 @Composable
 fun ProductImage(imageFilename: String?) {
     val fullImageUrl = ApiUrls.itemImageUrl(imageFilename)
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    AppCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         if (fullImageUrl.isNullOrBlank()) {
             Box(

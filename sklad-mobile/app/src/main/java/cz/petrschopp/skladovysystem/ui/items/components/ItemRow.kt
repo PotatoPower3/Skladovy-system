@@ -24,8 +24,6 @@ fun ItemRow(
     selected: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val mainCode = item.codes.firstOrNull()?.code
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -54,9 +52,9 @@ fun ItemRow(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        if (!mainCode.isNullOrBlank()) {
+        if (!item.note.isNullOrBlank()) {
             Text(
-                text = "Kód: $mainCode",
+                text = "Poznámka: ${item.note}",
                 style = MaterialTheme.typography.bodySmall
             )
         }

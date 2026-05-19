@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -31,6 +29,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.runtime.LaunchedEffect
 import cz.petrschopp.skladovysystem.data.model.ItemDto
+import cz.petrschopp.skladovysystem.ui.common.AppCard
 import cz.petrschopp.skladovysystem.ui.common.AppListCard
 import cz.petrschopp.skladovysystem.ui.common.ErrorDialog
 import cz.petrschopp.skladovysystem.ui.items.components.ItemRow
@@ -70,9 +69,8 @@ fun ResolveUnknownCodeScreen(
 
         if (code.isNotBlank()) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                AppCard(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp)

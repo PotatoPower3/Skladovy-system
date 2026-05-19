@@ -1,7 +1,12 @@
 import express from 'express';
 import { pool } from '../db/pool.js';
+import { httpError } from '../utils/httpError.js';
 
 const router = express.Router();
+
+const LOGIN_REQUIRED_MESSAGE = 'Uživatelské jméno a heslo jsou povinné.';
+const INVALID_LOGIN_MESSAGE = 'Neplatné přihlašovací údaje.';
+const INACTIVE_USER_MESSAGE = 'Uživatel není aktivní.';
 
 router.post('/login', async (req, res, next) => {
   try {
@@ -9,7 +14,7 @@ router.post('/login', async (req, res, next) => {
     const password = String(req.body.password || '');
 
     if (!username || !password) {
-      return res.status(400).json({ message: 'Uživatelské jméno a heslo jsou povinné.' });
+      throw httpError(400, LOGIN_REQUIRED_MESSAGE);
     }
 
     const result = await pool.query(
@@ -31,17 +36,17 @@ router.post('/login', async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ message: 'Neplatné přihlašovací údaje.' });
+      throw httpError(401, INVALID_LOGIN_MESSAGE);
     }
 
     const user = result.rows[0];
 
     if (!user.active) {
-      return res.status(403).json({ message: 'Uživatel není aktivní.' });
+      throw httpError(403, INACTIVE_USER_MESSAGE);
     }
 
     if (user.password !== password) {
-      return res.status(401).json({ message: 'Neplatné přihlašovací údaje.' });
+      throw httpError(401, INVALID_LOGIN_MESSAGE);
     }
 
     res.json({

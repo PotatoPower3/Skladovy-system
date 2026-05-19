@@ -1,0 +1,161 @@
+\documentclass[czech, oth, kiv, he, pdf, viewonly]{fasthesis}
+
+\title{Skladový systém}
+\worktypespec{Dokumentace semestrální práce}
+\author{Petr}{Schöpp}{}{}
+
+\nobastardtitle
+\nocopyrightnotice
+
+\begin{document}
+
+\frontpages[notm]
+\tableofcontents
+
+\chapter{Úvod}
+
+Tato semestrální práce se zabývá návrhem a implementací
+skladového systému. Aplikace je určena pro evidenci skladových
+položek a skladových pohybů, především příjmů a výdejů.
+
+Motivací pro vytvoření aplikace byla potřeba jednoduchého nástroje,
+který může skladník používat přímo ve skladu. Proto je hlavní část
+systému řešena jako mobilní aplikace pro Android.
+
+Cílem práce bylo vytvořit aplikaci, která umožní přehledně zobrazit
+aktuální stav skladu, vyhledávat položky, vytvářet skladové doklady
+a sledovat historii provedených pohybů.
+
+Systém je rozdělen na mobilní aplikaci, serverovou část a databázi.
+Mobilní aplikace zajišťuje uživatelské rozhraní a komunikaci se
+serverem. Serverová část je vytvořena v prostředí Node.js a poskytuje
+REST API. Data jsou ukládána do databáze PostgreSQL.
+
+Výsledná aplikace podporuje práci se skladovými položkami, vytváření
+příjmových a výdejových dokladů, skenování čárových a QR kódů,
+ruční vyhledávání produktů, evidenci historie a ukládání fotografií
+produktů.
+
+\chapter{Popis aplikace}
+
+\section{Účel aplikace}
+
+Účelem aplikace je zjednodušit evidenci skladových položek a
+skladových pohybů. Aplikace je navržena tak, aby ji mohl skladník
+používat přímo ve skladu na běžném mobilním telefonu s operačním
+systémem Android.
+
+Důležitou motivací bylo také snížení nákladů. Specializovaná
+skladová čtecí zařízení mohou být pro menší provozy zbytečně drahá.
+Kromě samotného zařízení může být u některých komerčních řešení
+nutné platit také licenci nebo pravidelné poplatky za používání
+aplikace. Běžný mobilní telefon s Androidem je oproti tomu dostupnější
+a často již obsahuje vše potřebné pro základní práci ve skladu,
+například fotoaparát pro skenování kódů.
+
+Aplikace proto využívá mobilní telefon jako jednoduché skladové
+zařízení. Uživatel může zobrazit aktuální stav skladu, vyhledat
+položku podle názvu nebo kódu, zobrazit detail položky a vytvořit
+příjmový nebo výdejový doklad.
+
+Při příjmu je možné založit novou položku, pokud se ve skladu ještě
+nenachází. Při výdeji aplikace kontroluje, aby nebylo možné vydat
+větší množství, než je aktuálně dostupné na skladě.
+
+\section{Hlavní části systému}
+
+Systém je rozdělen na tři hlavní části: mobilní aplikaci, server a
+databázi.
+
+Mobilní aplikace zajišťuje uživatelské rozhraní, práci s formuláři,
+skenování kódů a komunikaci se serverem. Server zpracovává požadavky
+mobilní aplikace, provádí validaci dat a ukládá změny do databáze.
+
+Databáze uchovává informace o uživatelích, skladech, položkách,
+kódech položek, skladových množstvích a skladových dokladech.
+
+\section{Použité technologie}
+
+Aplikace je rozdělena na mobilní část, serverovou část a databázi.
+Každá část používá technologie vhodné pro svoji úlohu.
+
+\subsection{Mobilní aplikace}
+
+Mobilní aplikace je vytvořena v jazyce Kotlin pro operační systém
+Android. Uživatelské rozhraní je vytvořeno pomocí Jetpack Compose.
+Tento přístup umožňuje skládat obrazovky z menších komponent a dobře
+oddělit vzhled aplikace od jejího stavu.
+
+Pro správu stavu obrazovek jsou použity ViewModely. Stav je uchováván
+pomocí \texttt{StateFlow} a v uživatelském rozhraní je pozorován pomocí
+funkce \texttt{collectAsState}. Díky tomu se obrazovky automaticky
+překreslují při změně dat.
+
+Komunikace se serverem je řešena knihovnou Retrofit. Retrofit převádí
+volání funkcí v mobilní aplikaci na HTTP požadavky na REST API serveru.
+Pro převod dat mezi JSON formátem a Kotlin objekty je použita
+serializace pomocí anotací \texttt{SerializedName}.
+
+Pro načítání obrázků produktů je použita knihovna Coil. Obrázky jsou
+uloženy na serveru a v aplikaci jsou načítány podle URL adresy.
+
+Aplikace využívá také kameru zařízení. Kamera je používána pro pořízení
+fotografie produktu a pro skenování čárových nebo QR kódů. Skenování
+kódů je součástí pracovního postupu při vyhledání položky nebo při
+přidání položky do příjmu a výdeje.
+
+\subsection{Serverová část}
+
+Serverová část je vytvořena v prostředí Node.js s frameworkem Express.
+Server poskytuje REST API, které využívá mobilní aplikace.
+
+Jednotlivé části serveru jsou rozděleny do samostatných rout.
+Samostatně je řešeno přihlášení, položky, doklady, pohyby, uživatelé
+a sklady. Díky tomu není veškerá serverová logika soustředěna v jednom
+souboru.
+
+Pro přístup k databázi je použita knihovna \texttt{pg}. Server provádí
+SQL dotazy nad databází PostgreSQL a vrací mobilní aplikaci data ve
+formátu JSON.
+
+Pro nahrávání fotografií produktů je použita knihovna Multer. Fotografie
+se uloží do adresáře na serveru a v databázi se uloží název souboru.
+Mobilní aplikace potom fotografii načítá přes veřejnou URL adresu
+serveru.
+
+Server používá také knihovnu \texttt{dotenv} pro načítání konfigurace
+z \texttt{.env} souboru a knihovnu \texttt{cors}, aby mohla mobilní
+aplikace komunikovat se serverem v lokální síti.
+
+\subsection{Databáze}
+
+Data jsou ukládána do databáze PostgreSQL. Databáze uchovává informace
+o uživatelích, skladech, skladových položkách, kódech položek,
+aktuálním množství položek na skladě a skladových dokladech.
+
+Databázové schéma je definováno v souboru \texttt{schema.sql}.
+Testovací data jsou vložena pomocí souboru \texttt{seed.sql}.
+
+Databáze využívá primární a cizí klíče pro zachování vazeb mezi
+tabulkami. Například položky dokladů jsou navázány na konkrétní
+skladový doklad a konkrétní skladovou položku. Tabulka
+\texttt{warehouse\_items} uchovává aktuální množství položky na
+konkrétním skladu.
+
+\subsection{Použité prvky uživatelského rozhraní}
+
+Uživatelské rozhraní je tvořeno pomocí Jetpack Compose komponent.
+Aplikace využívá například textová pole, tlačítka, dialogy,
+rozbalovací menu, modální spodní panel a seznamy.
+
+Pro opakované části rozhraní byly vytvořeny vlastní komponenty.
+Mezi ně patří například společná karta \texttt{AppCard}, seznamová
+karta \texttt{AppListCard}, spodní akční lišta, obrazovka se
+skenerem a komponenta pro barevné označení typu skladového pohybu.
+
+Tyto komponenty pomáhají sjednotit vzhled aplikace a zároveň omezují
+opakování stejného kódu na více obrazovkách.
+
+
+
+\end{document}

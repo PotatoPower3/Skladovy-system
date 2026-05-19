@@ -6,7 +6,10 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "db:reset": "psql -U postgres -d sklad -f schema.sql",
+    "db:seed": "psql -U postgres -d sklad -f seed.sql",
+    "db:setup": "npm run db:reset && npm run db:seed"
   },
   "dependencies": {
     "cors": "^2.8.5",

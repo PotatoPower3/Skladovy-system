@@ -13,18 +13,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cz.petrschopp.skladovysystem.data.session.LoggedUser
@@ -32,18 +37,16 @@ import cz.petrschopp.skladovysystem.ui.history.HistoryScreen
 import cz.petrschopp.skladovysystem.ui.issuing.IssuingScreen
 import cz.petrschopp.skladovysystem.ui.items.ItemsScreen
 import cz.petrschopp.skladovysystem.ui.receiving.ReceivingScreen
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.Alignment
-
-private val AppBackground = Color(0xFF828286)
-private val HeaderBackground = Color(0xFF1D2A36)
-private val HeaderAccent = Color(0xFF454648)
-private val MenuBackground = Color(0xFF5F5F62)
-private val SelectedTab = Color(0xFF204B73)
-private val UnselectedTab = Color(0xFFD7DDE3)
-private val SelectedText = Color.White
-private val UnselectedText = Color(0xFF1F2D3A)
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.window.PopupProperties
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseSurface
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseBackground
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseHeader
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseMenu
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseSelectedTab
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseTextDark
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseTextLight
+import cz.petrschopp.skladovysystem.ui.theme.WarehouseUnselectedTab
 
 enum class MainTab(
     val title: String
@@ -63,6 +66,7 @@ fun MainScreen(
     var isFormOpen by remember { mutableStateOf(false) }
     var isDetailOpen by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -70,77 +74,97 @@ fun MainScreen(
             title = { Text("Odhlášení") },
             text = { Text("Opravdu se chcete odhlásit?") },
             confirmButton = {
-                TextButton(onClick = {
-                    showLogoutDialog = false
-                    onLogout()
-                }) {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                    }
+                ) {
                     Text("Ano")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
+                TextButton(
+                    onClick = { showLogoutDialog = false }
+                ) {
                     Text("Ne")
                 }
             }
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppBackground)
-    ) {
-        WarehouseHeader(
-            warehouseName = "Hlavní sklad",
-            loggedUser = loggedUser,
-            onLogout = { showLogoutDialog = true },
-            showLogout = !isFormOpen && !isDetailOpen && selectedTab == MainTab.HISTORY
+    if (showAboutDialog) {
+        AboutDialog(
+            onDismiss = { showAboutDialog = false }
         )
+    }
 
-        if (!isFormOpen) {
-            MainMenu(
-                selectedTab = selectedTab,
-                onTabSelected = {
-                    selectedTab = it
-                    isFormOpen = false
-                }
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(AppBackground)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
-            when (selectedTab) {
-                MainTab.HISTORY -> {
-                    HistoryScreen(
-                        currentUserId = loggedUser.id,
-                        onFormVisibleChange = { isFormOpen = it },
-                        onDetailVisibleChange = { isDetailOpen = it }
-                    )
-                }
+            MainHeader(
+                warehouseName = "Hlavní sklad",
+                loggedUser = loggedUser,
+                showMenu = !isFormOpen && !isDetailOpen,
+                onAboutClick = { showAboutDialog = true },
+                onLogoutClick = { showLogoutDialog = true }
+            )
 
-                MainTab.ITEMS -> {
-                    ItemsScreen(
-                        onDetailVisibleChange = { isDetailOpen = it }
-                    )
-                }
+            if (!isFormOpen && !isDetailOpen) {
+                MainMenu(
+                    selectedTab = selectedTab,
+                    onTabSelected = {
+                        selectedTab = it
+                        isFormOpen = false
+                        isDetailOpen = false
+                    }
+                )
+            }
 
-                MainTab.RECEIVING -> {
-                    ReceivingScreen(
-                        currentUserId = loggedUser.id,
-                        onFormVisibleChange = { isFormOpen = it },
-                        onDetailVisibleChange = { isDetailOpen = it }
-                    )
-                }
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onBackground
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    when (selectedTab) {
+                        MainTab.HISTORY -> {
+                            HistoryScreen(
+                                currentUserId = loggedUser.id,
+                                onFormVisibleChange = { isFormOpen = it },
+                                onDetailVisibleChange = { isDetailOpen = it }
+                            )
+                        }
 
-                MainTab.ISSUING -> {
-                    IssuingScreen(
-                        currentUserId = loggedUser.id,
-                        onFormVisibleChange = { isFormOpen = it },
-                        onDetailVisibleChange = { isDetailOpen = it }
-                    )
+                        MainTab.ITEMS -> {
+                            ItemsScreen(
+                                onDetailVisibleChange = { isDetailOpen = it }
+                            )
+                        }
+
+                        MainTab.RECEIVING -> {
+                            ReceivingScreen(
+                                currentUserId = loggedUser.id,
+                                onFormVisibleChange = { isFormOpen = it },
+                                onDetailVisibleChange = { isDetailOpen = it }
+                            )
+                        }
+
+                        MainTab.ISSUING -> {
+                            IssuingScreen(
+                                currentUserId = loggedUser.id,
+                                onFormVisibleChange = { isFormOpen = it },
+                                onDetailVisibleChange = { isDetailOpen = it }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -148,16 +172,17 @@ fun MainScreen(
 }
 
 @Composable
-private fun WarehouseHeader(
+private fun MainHeader(
     warehouseName: String,
     loggedUser: LoggedUser,
-    onLogout: () -> Unit,
-    showLogout: Boolean
+    showMenu: Boolean,
+    onAboutClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(HeaderBackground)
+            .background(WarehouseHeader)
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -167,7 +192,7 @@ private fun WarehouseHeader(
         ) {
             Text(
                 text = "Sklad",
-                color = Color(0xFFB8C7D6),
+                color = WarehouseTextLight,
                 style = MaterialTheme.typography.bodySmall
             )
 
@@ -175,28 +200,81 @@ private fun WarehouseHeader(
 
             Text(
                 text = warehouseName,
-                color = Color.White,
+                color = WarehouseTextLight,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
 
             Text(
                 text = "${loggedUser.firstName} ${loggedUser.lastName}",
-                color = Color(0xFFB8C7D6),
+                color = WarehouseTextLight,
                 style = MaterialTheme.typography.bodySmall
             )
         }
 
-        if (showLogout) {
-            Button(
-                onClick = onLogout,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = HeaderAccent,
-                    contentColor = Color.White
-                )
-            ) {
-                Text("Odhlásit")
-            }
+        if (showMenu) {
+            HeaderMenu(
+                onAboutClick = onAboutClick,
+                onLogoutClick = onLogoutClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeaderMenu(
+    onAboutClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        IconButton(
+            onClick = { expanded = true }
+        ) {
+            Text(
+                text = "⋮",
+                color = WarehouseTextLight,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+            properties = PopupProperties(focusable = true),
+            modifier = Modifier.widthIn(min = 180.dp)
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "O aplikaci",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onAboutClick()
+                }
+            )
+
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "Odhlásit",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onLogoutClick()
+                }
+            )
         }
     }
 }
@@ -207,7 +285,7 @@ private fun MainMenu(
     onTabSelected: (MainTab) -> Unit
 ) {
     Surface(
-        color = MenuBackground,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -223,8 +301,16 @@ private fun MainMenu(
                     onClick = { onTabSelected(tab) },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelected) SelectedTab else UnselectedTab,
-                        contentColor = if (isSelected) SelectedText else UnselectedText
+                        containerColor = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        },
+                        contentColor = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
                     ),
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = if (isSelected) 2.dp else 0.dp
@@ -233,7 +319,11 @@ private fun MainMenu(
                 ) {
                     Text(
                         text = tab.title,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        fontWeight = if (isSelected) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Medium
+                        }
                     )
                 }
             }

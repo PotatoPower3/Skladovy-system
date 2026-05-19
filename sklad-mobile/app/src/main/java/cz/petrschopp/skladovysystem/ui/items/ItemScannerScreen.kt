@@ -118,9 +118,7 @@ fun ItemScannerScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
         BarcodeScanPanel(
             title = "Hledat položku",
@@ -133,7 +131,10 @@ fun ItemScannerScreen(
             onManualClick = {
                 manualInputVisible = true
             },
-            onBackClick = onBack
+            onBackClick = onBack,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         )
 
         if (manualInputVisible) {

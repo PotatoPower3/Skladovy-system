@@ -1,14 +1,13 @@
 package cz.petrschopp.skladovysystem.ui.common
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,7 +22,7 @@ fun <T> AppListCard(
     maxHeightDp: Int? = null,
     rowContent: @Composable (T) -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = modifier
             .fillMaxWidth()
             .then(
@@ -32,8 +31,7 @@ fun <T> AppListCard(
                 } else {
                     Modifier
                 }
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            )
     ) {
         if (items.isEmpty()) {
             Text(
@@ -53,7 +51,8 @@ fun <T> AppListCard(
                     if (index < visibleItems.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 8.dp),
-                            thickness = 1.dp
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
                         )
                     }
                 }

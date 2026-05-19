@@ -1,22 +1,29 @@
 import express from 'express';
 import { pool } from '../db/pool.js';
+import { getWarehouseId, getLimit } from '../utils/request.js';
+import { httpError } from '../utils/httpError.js';
 
 const router = express.Router();
 
-function getWarehouseId(req) {
-  return Number(req.query.warehouseId || 1);
-}
+function getOptionalNumberQuery(req, key) {
+  const value = req.query[key];
 
-function getLimit(req) {
-  const limit = Number(req.query.limit || 20);
-  return Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : 20;
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue) && numberValue > 0
+    ? numberValue
+    : null;
 }
 
 router.get('/', async (req, res, next) => {
   try {
     const warehouseId = getWarehouseId(req);
     const limit = getLimit(req);
-    const itemId = req.query.itemId ? Number(req.query.itemId) : null;
+    const itemId = getOptionalNumberQuery(req, 'itemId');
 
     const params = [warehouseId, limit];
 
@@ -24,7 +31,7 @@ router.get('/', async (req, res, next) => {
 
     if (itemId) {
       params.push(itemId);
-      itemFilterSql = `AND sdi.item_id = $3`;
+      itemFilterSql = 'AND sdi.item_id = $3';
     }
 
     const result = await pool.query(
@@ -86,16 +93,12 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/in', (req, res) => {
-  res.status(410).json({
-    message: 'Tento endpoint už se nepoužívá. Použijte POST /documents/in.'
-  });
+router.post('/in', (req, res, next) => {
+  next(httpError(410, 'Tento endpoint neexistuje.'));
 });
 
-router.post('/out', (req, res) => {
-  res.status(410).json({
-    message: 'Tento endpoint už se nepoužívá. Použijte POST /documents/out.'
-  });
+router.post('/out', (req, res, next) => {
+  next(httpError(410, 'Tento endpoint neexistuje.'));
 });
 
 export default router;

@@ -115,6 +115,7 @@ private fun ItemsListContent(
     }
 
     SearchableListScreen(
+        title = "Položky",
         uiState = uiState,
         data = filteredItems,
         searchQuery = searchQuery,

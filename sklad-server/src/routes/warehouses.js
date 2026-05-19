@@ -1,11 +1,12 @@
 import express from 'express';
 import { pool } from '../db/pool.js';
+import { getBooleanQuery } from '../utils/request.js';
 
 const router = express.Router();
 
 router.get('/', async (req, res, next) => {
   try {
-    const includeInactive = req.query.includeInactive === 'true';
+    const includeInactive = getBooleanQuery(req, 'includeInactive');
 
     const result = await pool.query(
       `

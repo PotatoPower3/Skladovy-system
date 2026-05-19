@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cz.petrschopp.skladovysystem.data.model.ItemDto
 import cz.petrschopp.skladovysystem.data.model.MovementDto
+import cz.petrschopp.skladovysystem.ui.common.AppCard
 import cz.petrschopp.skladovysystem.ui.common.BottomActionBar
 import cz.petrschopp.skladovysystem.utils.formatQuantity
 
@@ -56,9 +55,8 @@ fun ItemDetailScreen(
             }
 
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                AppCard(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -74,9 +72,8 @@ fun ItemDetailScreen(
             }
 
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                AppCard(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -84,11 +81,6 @@ fun ItemDetailScreen(
                         Text("Sklad: ${item.warehouseName}")
                         Text("Umístění: ${item.location ?: "neuvedeno"}")
                         Text("Minimum: ${item.minQuantity ?: "0"} ${item.unit}")
-
-                        val mainCode = item.codes.firstOrNull()?.code
-                        if (!mainCode.isNullOrBlank()) {
-                            Text("Kód: $mainCode")
-                        }
 
                         if (!item.note.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(12.dp))
