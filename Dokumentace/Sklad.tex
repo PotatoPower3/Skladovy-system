@@ -1,5 +1,7 @@
 \documentclass[czech, oth, kiv, he, pdf, viewonly]{fasthesis}
 
+\usepackage{float}
+
 \title{Skladový systém}
 \worktypespec{Dokumentace semestrální práce}
 \author{Petr}{Schöpp}{}{}
@@ -76,56 +78,81 @@ kódech položek, skladových množstvích a skladových dokladech.
 
 \section{Použité technologie}
 
-Aplikace je rozdělena na mobilní část, serverovou část a databázi.
-Každá část používá technologie vhodné pro svoji úlohu.
+Aplikace je rozdělena na tři hlavní části: mobilní aplikaci, server
+a databázi. Každá část používá technologie odpovídající své úloze.
 
 \subsection{Mobilní aplikace}
 
 Mobilní aplikace je vytvořena v jazyce Kotlin pro operační systém
 Android. Uživatelské rozhraní je vytvořeno pomocí Jetpack Compose.
-Tento přístup umožňuje skládat obrazovky z menších komponent a dobře
-oddělit vzhled aplikace od jejího stavu.
+Obrazovky jsou skládány z menších Composable funkcí, což usnadňuje
+jejich opakované použití a pozdější úpravy.
 
-Pro správu stavu obrazovek jsou použity ViewModely. Stav je uchováván
+Pro opakované části rozhraní byly vytvořeny vlastní komponenty.
+Mezi ně patří například společná karta \texttt{AppCard}, seznamová
+karta \texttt{AppListCard}, spodní akční lišta, obrazovka se skenerem
+a komponenta pro barevné označení typu skladového pohybu. Tyto
+komponenty sjednocují vzhled aplikace a omezují opakování kódu.
+
+Aplikace využívá běžné prvky uživatelského rozhraní, například textová
+pole, tlačítka, dialogy, rozbalovací menu, modální spodní panel a
+seznamy. Důležité akce jsou umístěny hlavně do spodní části obrazovky,
+aby byly na telefonu dobře dostupné.
+
+Stav obrazovek je spravován pomocí ViewModelů. Stav je uchováván
 pomocí \texttt{StateFlow} a v uživatelském rozhraní je pozorován pomocí
-funkce \texttt{collectAsState}. Díky tomu se obrazovky automaticky
-překreslují při změně dat.
+funkce \texttt{collectAsState}. Při změně dat se tak příslušná část
+obrazovky automaticky překreslí.
 
 Komunikace se serverem je řešena knihovnou Retrofit. Retrofit převádí
 volání funkcí v mobilní aplikaci na HTTP požadavky na REST API serveru.
-Pro převod dat mezi JSON formátem a Kotlin objekty je použita
-serializace pomocí anotací \texttt{SerializedName}.
+Data přenášená mezi serverem a aplikací jsou ve formátu JSON. Pro
+mapování názvů polí z JSON odpovědí na Kotlin modely jsou použity
+anotace \texttt{SerializedName}.
 
 Pro načítání obrázků produktů je použita knihovna Coil. Obrázky jsou
-uloženy na serveru a v aplikaci jsou načítány podle URL adresy.
+uloženy na serveru a mobilní aplikace je načítá podle URL adresy.
 
-Aplikace využívá také kameru zařízení. Kamera je používána pro pořízení
-fotografie produktu a pro skenování čárových nebo QR kódů. Skenování
-kódů je součástí pracovního postupu při vyhledání položky nebo při
-přidání položky do příjmu a výdeje.
+Kamera je v aplikaci využita dvěma způsoby. Prvním je pořízení
+fotografie produktu. Druhým je skenování čárových a QR kódů. Pro práci
+s kamerou při skenování je použita knihovna CameraX. Náhled kamery je
+zobrazen pomocí komponenty \texttt{PreviewView}, která je do Compose
+rozhraní vložena přes \texttt{AndroidView}.
+
+Rozpoznávání kódů je řešeno pomocí ML Kit Barcode Scanning. Obraz
+z kamery je zpracováván pomocí \texttt{ImageAnalysis}. Jednotlivé
+snímky jsou převedeny na \texttt{InputImage} a následně předány
+scanneru z ML Kit. Pokud je rozpoznán čárový nebo QR kód, aplikace jej
+použije pro vyhledání položky nebo pro přidání položky do příjmového
+nebo výdejového dokladu.
+
+Součástí skeneru je také vlastní vizuální překryv. Ten vykresluje
+oblast rozpoznaného kódu a informuje uživatele, zda byl kód nalezen.
+Pokud je v obrazu více kódů, aplikace vybírá kód nejblíže středu
+obrazu, aby bylo skenování pro uživatele předvídatelnější.
 
 \subsection{Serverová část}
 
 Serverová část je vytvořena v prostředí Node.js s frameworkem Express.
 Server poskytuje REST API, které využívá mobilní aplikace.
 
-Jednotlivé části serveru jsou rozděleny do samostatných rout.
+Server je rozdělen do samostatných rout podle oblastí systému.
 Samostatně je řešeno přihlášení, položky, doklady, pohyby, uživatelé
-a sklady. Díky tomu není veškerá serverová logika soustředěna v jednom
+a sklady. Díky tomu není serverová logika soustředěna v jednom velkém
 souboru.
 
 Pro přístup k databázi je použita knihovna \texttt{pg}. Server provádí
 SQL dotazy nad databází PostgreSQL a vrací mobilní aplikaci data ve
 formátu JSON.
 
-Pro nahrávání fotografií produktů je použita knihovna Multer. Fotografie
-se uloží do adresáře na serveru a v databázi se uloží název souboru.
-Mobilní aplikace potom fotografii načítá přes veřejnou URL adresu
-serveru.
+Pro nahrávání fotografií produktů je použita knihovna Multer.
+Fotografie se uloží do adresáře na serveru a v databázi se uloží název
+souboru. Mobilní aplikace potom fotografii načítá přes veřejnou URL
+adresu serveru.
 
-Server používá také knihovnu \texttt{dotenv} pro načítání konfigurace
-z \texttt{.env} souboru a knihovnu \texttt{cors}, aby mohla mobilní
-aplikace komunikovat se serverem v lokální síti.
+Konfigurace serveru je načítána ze souboru \texttt{.env} pomocí
+knihovny \texttt{dotenv}. Knihovna \texttt{cors} umožňuje komunikaci
+mobilní aplikace se serverem v lokální síti.
 
 \subsection{Databáze}
 
@@ -142,19 +169,188 @@ skladový doklad a konkrétní skladovou položku. Tabulka
 \texttt{warehouse\_items} uchovává aktuální množství položky na
 konkrétním skladu.
 
-\subsection{Použité prvky uživatelského rozhraní}
+\section{Architektura aplikace}
 
-Uživatelské rozhraní je tvořeno pomocí Jetpack Compose komponent.
-Aplikace využívá například textová pole, tlačítka, dialogy,
-rozbalovací menu, modální spodní panel a seznamy.
+Aplikace je navržena jako klient-server systém. Mobilní aplikace
+nepracuje přímo s databází, ale komunikuje se serverem pomocí HTTP
+požadavků. Server následně provádí databázové operace a vrací
+mobilní aplikaci odpovědi ve formátu JSON.
 
-Pro opakované části rozhraní byly vytvořeny vlastní komponenty.
-Mezi ně patří například společná karta \texttt{AppCard}, seznamová
-karta \texttt{AppListCard}, spodní akční lišta, obrazovka se
-skenerem a komponenta pro barevné označení typu skladového pohybu.
+Toto rozdělení umožňuje oddělit uživatelské rozhraní od databázové
+a serverové logiky. Mobilní aplikace řeší především zobrazení dat,
+práci s uživatelským vstupem a komunikaci se serverem. Serverová část
+řeší validaci požadavků, ukládání dat a změny skladového množství.
 
-Tyto komponenty pomáhají sjednotit vzhled aplikace a zároveň omezují
-opakování stejného kódu na více obrazovkách.
+\subsection{Mobilní část}
+
+Mobilní část je rozdělena do několika vrstev. Datové modely popisují
+objekty, se kterými aplikace pracuje, například položky, doklady,
+uživatele nebo skladové pohyby. Síťová vrstva obsahuje API klienta
+a definice volání serverových endpointů.
+
+Stav jednotlivých obrazovek je uložen ve ViewModelech. ViewModely
+obsahují logiku pro načítání dat, ukládání změn a zpracování chyb.
+Uživatelské rozhraní je tvořeno Composable funkcemi, které pouze
+zobrazují aktuální stav a předávají uživatelské akce zpět do
+ViewModelů.
+
+Toto rozdělení zjednodušuje údržbu aplikace. Pokud se změní způsob
+načítání dat ze serveru, není nutné měnit samotné vykreslení
+obrazovek. Stejně tak lze upravovat vzhled komponent bez zásahu do
+serverové komunikace.
+
+\subsection{Serverová část}
+
+Serverová část je rozdělena podle hlavních oblastí systému. Samostatné
+routy řeší přihlášení, položky, doklady, pohyby, uživatele a sklady.
+Každá routa obsahuje endpointy související s danou oblastí.
+
+Například práce s položkami je oddělena od práce se skladovými
+doklady. Díky tomu je kód přehlednější a nové funkce lze přidávat do
+konkrétní části serveru bez nutnosti upravovat celý server.
+
+Na serveru jsou také vyčleněny společné pomocné funkce. Ty slouží
+například pro čtení parametrů z požadavku nebo pro jednotné vytváření
+HTTP chyb. Díky tomu se neopakuje stejná logika v každé routě.
+
+\subsection{Databázová část}
+
+Databáze obsahuje samostatné tabulky pro uživatele, sklady, položky,
+kódy položek, množství položek na skladě a skladové doklady. Vazby
+mezi tabulkami jsou řešeny pomocí cizích klíčů.
+
+Aktuální množství položek na skladě je uloženo v tabulce
+\texttt{warehouse\_items}. Skladové doklady jsou uloženy v tabulkách
+\texttt{stock\_documents} a \texttt{stock\_document\_items}. Díky tomu
+je možné zvlášť evidovat aktuální stav skladu a zároveň uchovávat
+historii provedených příjmů a výdejů.
+
+Při vytvoření nebo úpravě dokladu server aktualizuje odpovídající
+skladové množství. Tato logika je ponechána na serveru, aby nemohlo
+dojít k nekonzistentním změnám pouze na straně mobilní aplikace.
+
+\chapter{Datový model}
+
+Datový model je navržen tak, aby odděloval skladové položky, jejich
+kódy, aktuální množství na skladě a historii skladových dokladů.
+Díky tomu lze uchovávat nejen aktuální stav skladu, ale také zpětně
+dohledat, jakými příjmy a výdeji byl tento stav vytvořen.
+
+Databázové schéma je definováno v souboru \texttt{schema.sql}.
+Základní testovací data jsou vložena pomocí souboru \texttt{seed.sql}.
+
+\section{Přehled tabulek}
+
+Následující tabulka shrnuje hlavní databázové tabulky a jejich význam.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{9cm}|}
+\hline
+\textbf{Tabulka} & \textbf{Význam} \\
+\hline
+\texttt{roles} &
+Uživatelské role, například skladník nebo administrátor. \\
+\hline
+\texttt{users} &
+Uživatelé aplikace, jejich přihlašovací údaje, jméno, příjmení,
+role a informace o aktivitě účtu. \\
+\hline
+\texttt{warehouses} &
+Sklady, jejich názvy, kódy, umístění a informace o aktivitě. \\
+\hline
+\texttt{items} &
+Skladové položky, jejich název, jednotka, poznámka a název souboru
+s fotografií. \\
+\hline
+\texttt{item\_codes} &
+Kódy skladových položek. Jedna položka může mít více různých kódů. \\
+\hline
+\texttt{code\_types} &
+Typy kódů, například EAN, QR nebo interní kód. \\
+\hline
+\texttt{warehouse\_items} &
+Aktuální množství konkrétní položky na konkrétním skladu,
+včetně umístění a minimálního množství. \\
+\hline
+\texttt{movement\_types} &
+Typy skladových pohybů a jejich směr, například příjem nebo výdej. \\
+\hline
+\texttt{stock\_documents} &
+Hlavičky skladových dokladů, například číslo dokladu, sklad,
+typ pohybu, stav a uživatelé. \\
+\hline
+\texttt{stock\_document\_items} &
+Jednotlivé položky skladových dokladů, tedy položka, množství
+a poznámka. \\
+\hline
+\end{tabular}
+\caption{Přehled hlavních databázových tabulek}
+\end{table}
+
+\section{Uživatelé a sklady}
+
+Uživatelé systému jsou uloženi v tabulce \texttt{users}. Každý
+uživatel má uživatelské jméno, heslo, jméno, příjmení, roli a informaci
+o tom, zda je aktivní.
+
+Role uživatelů jsou uloženy v tabulce \texttt{roles}. V aktuální verzi
+aplikace jsou připraveny role skladníka a administrátora.
+
+Sklady jsou uloženy v tabulce \texttt{warehouses}. Každý sklad má
+název, kód, volitelné umístění a informaci o aktivitě. Aktuálně
+aplikace pracuje hlavně s hlavním skladem, ale datový model umožňuje
+evidovat více skladů.
+
+\section{Skladové položky}
+
+Skladové položky jsou uloženy v tabulce \texttt{items}. Položka
+obsahuje název, jednotku, volitelný název souboru s fotografií,
+poznámku a informaci o tom, zda je aktivní.
+
+Kódy položek jsou odděleny do tabulky \texttt{item\_codes}. Jedna
+položka tak může mít více různých kódů. To umožňuje například evidovat
+EAN kód, QR kód nebo interní kód položky.
+
+Typy kódů jsou uloženy v tabulce \texttt{code\_types}. Díky tomu není
+typ kódu uložen pouze jako text u každé položky, ale je spravován
+samostatně.
+
+Aktuální množství položky na konkrétním skladu je uloženo v tabulce
+\texttt{warehouse\_items}. Tato tabulka propojuje sklad a položku.
+Kromě aktuálního množství obsahuje také umístění položky ve skladu
+a minimální množství.
+
+\section{Skladové doklady}
+
+Skladové doklady jsou uloženy v tabulce \texttt{stock\_documents}.
+Doklad obsahuje číslo dokladu, sklad, typ pohybu, stav, poznámku,
+autora vytvoření a uživatele, který doklad naposledy upravil.
+
+Jednotlivé položky dokladu jsou uloženy v tabulce
+\texttt{stock\_document\_items}. Každý záznam obsahuje odkaz na doklad,
+odkaz na skladovou položku, množství a případnou poznámku.
+
+Typy skladových pohybů jsou uloženy v tabulce
+\texttt{movement\_types}. Každý typ pohybu má kód, název a směr
+pohybu. Směr pohybu určuje, zda se množství na skladě zvyšuje, nebo
+snižuje.
+
+V aplikaci jsou nejdůležitější typy pohybu příjem a výdej. Příjem
+zvyšuje množství položky na skladě, zatímco výdej ho snižuje.
+
+\section{Aktuální stav a historie}
+
+Aktuální stav skladu je uložen v tabulce \texttt{warehouse\_items}.
+Historie změn je odvozena ze skladových dokladů a jejich položek.
+
+Toto rozdělení bylo zvoleno proto, aby bylo možné rychle zobrazit
+současný stav skladu a zároveň uchovávat historii provedených operací.
+Při vytvoření nebo úpravě dokladu server aktualizuje aktuální množství
+ve skladu a současně ponechává uložený doklad v historii.
+
+Díky tomu lze v detailu položky zobrazit nejen aktuální množství, ale
+také seznam pohybů, které se dané položky týkají.
 
 
 
