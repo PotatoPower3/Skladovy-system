@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import cz.petrschopp.skladovysystem.data.model.AddCodeRequest
 import cz.petrschopp.skladovysystem.data.model.CreateItemRequest
 import cz.petrschopp.skladovysystem.data.model.ItemDto
+import cz.petrschopp.skladovysystem.data.model.WarehouseLocationDto
 import cz.petrschopp.skladovysystem.data.remote.ApiClient
 import cz.petrschopp.skladovysystem.utils.isNetworkError
 import cz.petrschopp.skladovysystem.utils.toUserMessage
@@ -33,6 +34,9 @@ data class ResolveUnknownCodeUiState(
     val searchResults: List<ItemDto> = emptyList(),
     val selectedExistingItem: ItemDto? = null,
 
+    val warehouseLocations: List<WarehouseLocationDto> = emptyList(),
+    val isLoadingLocations: Boolean = false,
+
     val isSearching: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
@@ -60,7 +64,51 @@ class ResolveUnknownCodeViewModel : ViewModel() {
 
     fun updateLocation(value: String) = updateState { copy(location = value) }
 
-    fun updateMinQuantity(value: String) = updateState { copy(minQuantity = value) }
+    fun updateMinQuantity(value: String) {
+        val filteredValue = value.filter { it.isDigit() }
+
+        updateState {
+            copy(
+                minQuantity = filteredValue,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun loadWarehouseLocations() {
+        if (_uiState.value.warehouseLocations.isNotEmpty()) {
+            return
+        }
+
+        viewModelScope.launch {
+            updateState {
+                copy(
+                    isLoadingLocations = true,
+                    errorMessage = null
+                )
+            }
+
+            try {
+                val locations = ApiClient.api.getWarehouseLocations(warehouseId = 1)
+
+                updateState {
+                    copy(
+                        warehouseLocations = locations,
+                        isLoadingLocations = false,
+                        isNetworkError = false
+                    )
+                }
+            } catch (e: Exception) {
+                updateState {
+                    copy(
+                        isLoadingLocations = false,
+                        errorMessage = e.toUserMessage("Nepodařilo se načíst umístění."),
+                        isNetworkError = e.isNetworkError()
+                    )
+                }
+            }
+        }
+    }
 
     fun updateNote(value: String) = updateState { copy(note = value) }
 
@@ -145,10 +193,14 @@ class ResolveUnknownCodeViewModel : ViewModel() {
             return
         }
 
-        val minQuantity = state.minQuantity
-            .replace(",", ".")
-            .toDoubleOrNull()
-            ?: 0.0
+        val minQuantity = state.minQuantity.toDoubleOrNull()
+
+        if (minQuantity == null || minQuantity < 0.0) {
+            updateState {
+                copy(errorMessage = "Minimální množství musí být číslo 0 nebo větší.")
+            }
+            return
+        }
 
         viewModelScope.launch {
             updateState {

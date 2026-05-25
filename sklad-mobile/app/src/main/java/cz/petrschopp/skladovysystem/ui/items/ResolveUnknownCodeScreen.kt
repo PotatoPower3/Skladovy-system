@@ -33,6 +33,13 @@ import cz.petrschopp.skladovysystem.ui.common.AppCard
 import cz.petrschopp.skladovysystem.ui.common.AppListCard
 import cz.petrschopp.skladovysystem.ui.common.ErrorDialog
 import cz.petrschopp.skladovysystem.ui.items.components.ItemRow
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 @Composable
 fun ResolveUnknownCodeScreen(
@@ -48,6 +55,10 @@ fun ResolveUnknownCodeScreen(
         if (!allowCreateNew && uiState.mode == ResolveUnknownCodeMode.CREATE_NEW) {
             viewModel.setMode(ResolveUnknownCodeMode.ASSIGN_TO_EXISTING)
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadWarehouseLocations()
     }
 
     LazyColumn(
@@ -233,6 +244,7 @@ fun ResolveUnknownCodeScreen(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateNewItemForm(
     uiState: ResolveUnknownCodeUiState,
@@ -268,13 +280,49 @@ private fun CreateNewItemForm(
             enabled = false
         )
 
-        OutlinedTextField(
-            value = uiState.location,
-            onValueChange = onLocationChange,
-            label = { Text("Umístění") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
+        var locationMenuExpanded by remember { mutableStateOf(false) }
+
+        ExposedDropdownMenuBox(
+            expanded = locationMenuExpanded,
+            onExpandedChange = {
+                locationMenuExpanded = !locationMenuExpanded
+            }
+        ) {
+            OutlinedTextField(
+                value = uiState.location,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Umístění") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(
+                        expanded = locationMenuExpanded
+                    )
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                singleLine = true
+            )
+
+            ExposedDropdownMenu(
+                expanded = locationMenuExpanded,
+                onDismissRequest = {
+                    locationMenuExpanded = false
+                }
+            ) {
+                uiState.warehouseLocations.forEach { location ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(location.name)
+                        },
+                        onClick = {
+                            onLocationChange(location.name)
+                            locationMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
 
         OutlinedTextField(
             value = uiState.minQuantity,
