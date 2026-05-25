@@ -34,6 +34,7 @@ import cz.petrschopp.skladovysystem.ui.documents.components.DocumentInfoCard
 import cz.petrschopp.skladovysystem.ui.documents.components.DocumentItemsCard
 import cz.petrschopp.skladovysystem.utils.SearchUtils
 import cz.petrschopp.skladovysystem.utils.formatDateTime
+import cz.petrschopp.skladovysystem.utils.formatWeight
 
 @Composable
 fun DocumentsScreen(
@@ -207,7 +208,7 @@ private fun DocumentHistoryList(
     AppListCard(
         items = documents,
         emptyText = "Žádné doklady k zobrazení.",
-        maxVisibleItems = 20
+        maxVisibleItems = 100
     ) { document ->
         DocumentHistoryRow(
             document = document,
@@ -238,7 +239,11 @@ private fun DocumentDetailScreen(
                 DocumentInfoCard(document = document)
             }
             item {
-                Text(text = "Položky dokladu", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Položky dokladu",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
             }
             item {
                 DocumentItemsCard(items = document.items)

@@ -75,6 +75,10 @@ class MainActivity : ComponentActivity() {
                             uiState = authUiState,
                             onUsernameChange = authViewModel::updateUsername,
                             onPasswordChange = authViewModel::updatePassword,
+                            onServerIpChange = authViewModel::updateServerIp,
+                            onServerPortChange = authViewModel::updateServerPort,
+                            onSaveServerConfig = authViewModel::saveServerConfig,
+                            onResetServerConfigInput = authViewModel::resetServerConfigInput,
                             onLoginClick = authViewModel::login,
                             onClearError = authViewModel::clearError
                         )

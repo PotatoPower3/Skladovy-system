@@ -10,7 +10,7 @@ object ApiUrls {
 
         if (value.isBlank()) return null
 
-        val baseUrl = ApiClient.BASE_URL.trimEnd('/')
+        val baseUrl = ApiClient.getBaseUrl().trimEnd('/')
         val normalizedPath = value.trimStart('/')
 
         return when {

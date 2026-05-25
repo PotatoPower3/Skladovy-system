@@ -11,6 +11,7 @@ import cz.petrschopp.skladovysystem.data.model.ItemCodeDto
 import cz.petrschopp.skladovysystem.data.model.UpdateItemRequest
 import cz.petrschopp.skladovysystem.data.model.LoginRequest
 import cz.petrschopp.skladovysystem.data.model.LoggedUserDto
+import cz.petrschopp.skladovysystem.data.model.WarehouseLocationDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -32,6 +33,11 @@ interface WarehouseApi {
         @Query("warehouseId") warehouseId: Int = 1
     ): List<ItemDto>
 
+    @GET("warehouses/{warehouseId}/locations")
+    suspend fun getWarehouseLocations(
+        @Path("warehouseId") warehouseId: Int = 1
+    ): List<WarehouseLocationDto>
+
     @GET("items/search")
     suspend fun searchItems(
         @Query("warehouseId") warehouseId: Int = 1,
@@ -42,13 +48,13 @@ interface WarehouseApi {
     suspend fun getMovements(
         @Query("warehouseId") warehouseId: Int = 1,
         @Query("itemId") itemId: Int? = null,
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 100
     ): List<MovementDto>
 
     @GET("documents")
     suspend fun getDocuments(
         @Query("warehouseId") warehouseId: Int = 1,
-        @Query("limit") limit: Int = 20,
+        @Query("limit") limit: Int = 100,
         @Query("movementTypeCode") movementTypeCode: String? = null
     ): List<DocumentDto>
 
@@ -103,4 +109,7 @@ interface WarehouseApi {
         @Query("warehouseId") warehouseId: Int = 1,
         @Part image: MultipartBody.Part
     ): ItemDto
+
+    @GET("health")
+    suspend fun healthCheck(): Unit
 }

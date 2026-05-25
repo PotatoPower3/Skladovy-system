@@ -5,7 +5,7 @@ VALUES
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO users (username, password, first_name, last_name, role_id)
-SELECT 'petr', '1234', 'Petr', 'Schöpp', id
+SELECT 'petr', '1234', 'Petr', 'Schöpp (A23B0102P)', id
 FROM roles
 WHERE name = 'skladnik'
 ON CONFLICT (username) DO NOTHING;
@@ -36,7 +36,7 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO items (name, unit, image_filename, note)
 VALUES
-  ('Šroub M6', 'ks', 'sroub-m6.jpg', 'Testovací položka'),
+  ('Šroub M6', 'ks', NULL, 'Testovací položka'),
   ('Matice M6', 'ks', NULL, 'Testovací položka'),
   ('Lepicí páska', 'ks', NULL, 'Položka bez kódu');
 

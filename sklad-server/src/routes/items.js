@@ -75,6 +75,7 @@ const itemSelectSql = `
     ) AS codes,
     wi.quantity,
     i.unit,
+    i.weight_per_unit,
     wi.location,
     wi.min_quantity,
     i.image_filename,
@@ -97,6 +98,16 @@ const itemGroupBySql = `
     wi.id,
     w.id
 `;
+
+function validateNonNegativeNumber(value, message) {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    throw httpError(400, message);
+  }
+
+  return numberValue;
+}
 
 function validateItemName(name) {
   if (!name || !String(name).trim()) {
@@ -419,6 +430,7 @@ router.post('/', async (req, res, next) => {
       code = null,
       codeType = 'UNKNOWN',
       unit = 'ks',
+      weightPerUnit = 0,
       imageFilename = null,
       note = null,
       warehouseId = 1,
@@ -429,15 +441,20 @@ router.post('/', async (req, res, next) => {
 
     validateItemName(name);
 
+    const validWeightPerUnit = validateNonNegativeNumber(
+      weightPerUnit,
+      'Váha kusu musí být číslo 0 nebo větší.'
+    );
+
     await client.query('BEGIN');
 
     const itemResult = await client.query(
       `
-      INSERT INTO items (name, unit, image_filename, note)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO items (name, unit, weight_per_unit, image_filename, note)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
       `,
-      [name, unit, imageFilename, note]
+      [name, unit, validWeightPerUnit, imageFilename, note]
     );
 
     const item = itemResult.rows[0];
@@ -476,6 +493,7 @@ router.put('/:id', async (req, res, next) => {
     const {
       name,
       unit,
+      weightPerUnit,
       imageFilename,
       note,
       active,
@@ -483,6 +501,14 @@ router.put('/:id', async (req, res, next) => {
       location,
       minQuantity
     } = req.body;
+
+    const validWeightPerUnit =
+      weightPerUnit === undefined || weightPerUnit === null
+        ? null
+        : validateNonNegativeNumber(
+            weightPerUnit,
+            'Váha kusu musí být číslo 0 nebo větší.'
+          );
 
     await client.query('BEGIN');
 
@@ -492,14 +518,15 @@ router.put('/:id', async (req, res, next) => {
       SET
         name = COALESCE($1, name),
         unit = COALESCE($2, unit),
-        image_filename = COALESCE($3, image_filename),
-        note = COALESCE($4, note),
-        active = COALESCE($5, active),
+        weight_per_unit = COALESCE($3, weight_per_unit),
+        image_filename = COALESCE($4, image_filename),
+        note = COALESCE($5, note),
+        active = COALESCE($6, active),
         updated_at = NOW()
-      WHERE id = $6
+      WHERE id = $7
       RETURNING *
       `,
-      [name, unit, imageFilename, note, active, id]
+      [name, unit, validWeightPerUnit, imageFilename, note, active, id]
     );
 
     if (itemResult.rows.length === 0) {

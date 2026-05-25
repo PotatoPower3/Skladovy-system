@@ -22,6 +22,7 @@ import cz.petrschopp.skladovysystem.data.model.MovementDto
 import cz.petrschopp.skladovysystem.ui.common.AppCard
 import cz.petrschopp.skladovysystem.ui.common.BottomActionBar
 import cz.petrschopp.skladovysystem.utils.formatQuantity
+import cz.petrschopp.skladovysystem.utils.formatWeight
 
 @Composable
 fun ItemDetailScreen(
@@ -78,9 +79,9 @@ fun ItemDetailScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        Text("Sklad: ${item.warehouseName}")
                         Text("Umístění: ${item.location ?: "neuvedeno"}")
                         Text("Minimum: ${item.minQuantity ?: "0"} ${item.unit}")
+                        Text("Hmotnost 1 ks: ${formatWeight(item.weightPerUnit ?: "0")} kg")
 
                         if (!item.note.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(12.dp))

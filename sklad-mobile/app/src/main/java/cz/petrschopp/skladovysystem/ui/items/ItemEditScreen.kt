@@ -96,6 +96,7 @@ fun ItemEditScreen(
                     onNameChange = viewModel::updateName,
                     onLocationChange = viewModel::updateLocation,
                     onMinQuantityChange = viewModel::updateMinQuantity,
+                    onWeightPerUnitChange = viewModel::updateWeightPerUnit,
                     onNoteChange = viewModel::updateNote
                 )
             }

@@ -33,6 +33,7 @@ import cz.petrschopp.skladovysystem.ui.common.LoadingContent
 import cz.petrschopp.skladovysystem.ui.documents.components.AddItemToDocumentScreen
 import cz.petrschopp.skladovysystem.ui.documents.components.DocumentFormBottomBar
 import cz.petrschopp.skladovysystem.ui.documents.components.DraftItemsList
+import cz.petrschopp.skladovysystem.utils.formatWeight
 
 @Composable
 fun DocumentFormScreen(
@@ -147,6 +148,24 @@ fun DocumentFormScreen(
                     text = "Položky v dokladu",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
+                )
+            }
+
+            item {
+                val totalWeight = uiState.draftItems.sumOf { draftItem ->
+                    val quantity = draftItem.quantity
+                    val weightPerUnit = draftItem.item.weightPerUnit
+                        ?.replace(",", ".")
+                        ?.toDoubleOrNull()
+                        ?: 0.0
+
+                    quantity * weightPerUnit
+                }
+
+                Text(
+                    text = "Celková hmotnost: ${formatWeight(totalWeight.toString())} kg",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 

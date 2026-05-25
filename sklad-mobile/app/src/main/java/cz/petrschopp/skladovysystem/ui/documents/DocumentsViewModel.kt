@@ -23,7 +23,7 @@ class DocumentsViewModel : BaseViewModel<DocumentsUiState>(DocumentsUiState()) {
 
         val docs = ApiClient.api.getDocuments(
             warehouseId = 1,
-            limit = 20,
+            limit = 100,
             movementTypeCode = movementTypeCode
         )
 

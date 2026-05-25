@@ -1,7 +1,5 @@
 \documentclass[czech, oth, kiv, he, pdf, viewonly]{fasthesis}
 
-\usepackage{float}
-
 \title{Skladový systém}
 \worktypespec{Dokumentace semestrální práce}
 \author{Petr}{Schöpp}{}{}
@@ -24,21 +22,15 @@ Motivací pro vytvoření aplikace byla potřeba jednoduchého nástroje,
 který může skladník používat přímo ve skladu. Proto je hlavní část
 systému řešena jako mobilní aplikace pro Android.
 
-Cílem práce bylo vytvořit aplikaci, která umožní přehledně zobrazit
-aktuální stav skladu, vyhledávat položky, vytvářet skladové doklady
-a sledovat historii provedených pohybů.
+Cílem práce bylo vytvořit aplikaci, která umožní zobrazit aktuální
+stav skladu, vyhledávat položky, vytvářet skladové doklady a sledovat
+historii provedených pohybů.
 
 Systém je rozdělen na mobilní aplikaci, serverovou část a databázi.
-Mobilní aplikace zajišťuje uživatelské rozhraní a komunikaci se
-serverem. Serverová část je vytvořena v prostředí Node.js a poskytuje
-REST API. Data jsou ukládána do databáze PostgreSQL.
+Mobilní aplikace zajišťuje uživatelské rozhraní, server poskytuje
+REST API a data jsou ukládána do databáze PostgreSQL.
 
-Výsledná aplikace podporuje práci se skladovými položkami, vytváření
-příjmových a výdejových dokladů, skenování čárových a QR kódů,
-ruční vyhledávání produktů, evidenci historie a ukládání fotografií
-produktů.
-
-\chapter{Popis aplikace}
+\chapter{Popis aplikace a použité technologie}
 
 \section{Účel aplikace}
 
@@ -47,34 +39,18 @@ skladových pohybů. Aplikace je navržena tak, aby ji mohl skladník
 používat přímo ve skladu na běžném mobilním telefonu s operačním
 systémem Android.
 
-Důležitou motivací bylo také snížení nákladů. Specializovaná
-skladová čtecí zařízení mohou být pro menší provozy zbytečně drahá.
-Kromě samotného zařízení může být u některých komerčních řešení
-nutné platit také licenci nebo pravidelné poplatky za používání
-aplikace. Běžný mobilní telefon s Androidem je oproti tomu dostupnější
-a často již obsahuje vše potřebné pro základní práci ve skladu,
-například fotoaparát pro skenování kódů.
+Důležitou motivací bylo také snížení nákladů. Specializovaná skladová
+čtecí zařízení mohou být pro menší provozy zbytečně drahá. U některých
+komerčních řešení je navíc nutné platit licenci nebo pravidelné
+poplatky za používání aplikace. Běžný mobilní telefon s Androidem je
+oproti tomu dostupnější a často již obsahuje vše potřebné pro základní
+práci ve skladu, například fotoaparát pro skenování kódů.
 
-Aplikace proto využívá mobilní telefon jako jednoduché skladové
-zařízení. Uživatel může zobrazit aktuální stav skladu, vyhledat
-položku podle názvu nebo kódu, zobrazit detail položky a vytvořit
-příjmový nebo výdejový doklad.
-
-Při příjmu je možné založit novou položku, pokud se ve skladu ještě
-nenachází. Při výdeji aplikace kontroluje, aby nebylo možné vydat
-větší množství, než je aktuálně dostupné na skladě.
-
-\section{Hlavní části systému}
-
-Systém je rozdělen na tři hlavní části: mobilní aplikaci, server a
-databázi.
-
-Mobilní aplikace zajišťuje uživatelské rozhraní, práci s formuláři,
-skenování kódů a komunikaci se serverem. Server zpracovává požadavky
-mobilní aplikace, provádí validaci dat a ukládá změny do databáze.
-
-Databáze uchovává informace o uživatelích, skladech, položkách,
-kódech položek, skladových množstvích a skladových dokladech.
+Uživatel může zobrazit aktuální stav skladu, vyhledat položku podle
+názvu nebo kódu, zobrazit detail položky a vytvořit příjmový nebo
+výdejový doklad. Při příjmu je možné založit novou položku. Při výdeji
+aplikace kontroluje, aby nebylo možné vydat větší množství, než je
+aktuálně dostupné na skladě.
 
 \section{Použité technologie}
 
@@ -173,61 +149,18 @@ konkrétním skladu.
 
 Aplikace je navržena jako klient-server systém. Mobilní aplikace
 nepracuje přímo s databází, ale komunikuje se serverem pomocí HTTP
-požadavků. Server následně provádí databázové operace a vrací
-mobilní aplikaci odpovědi ve formátu JSON.
+požadavků. Server provádí databázové operace, validuje požadavky
+a vrací odpovědi ve formátu JSON.
 
-Toto rozdělení umožňuje oddělit uživatelské rozhraní od databázové
-a serverové logiky. Mobilní aplikace řeší především zobrazení dat,
-práci s uživatelským vstupem a komunikaci se serverem. Serverová část
-řeší validaci požadavků, ukládání dat a změny skladového množství.
+Mobilní aplikace je rozdělena na datové modely, síťovou vrstvu,
+ViewModely a Composable obrazovky. ViewModely obsahují logiku pro
+načítání dat, ukládání změn a zpracování chyb. Uživatelské rozhraní
+zobrazuje aktuální stav a předává uživatelské akce zpět do ViewModelů.
 
-\subsection{Mobilní část}
-
-Mobilní část je rozdělena do několika vrstev. Datové modely popisují
-objekty, se kterými aplikace pracuje, například položky, doklady,
-uživatele nebo skladové pohyby. Síťová vrstva obsahuje API klienta
-a definice volání serverových endpointů.
-
-Stav jednotlivých obrazovek je uložen ve ViewModelech. ViewModely
-obsahují logiku pro načítání dat, ukládání změn a zpracování chyb.
-Uživatelské rozhraní je tvořeno Composable funkcemi, které pouze
-zobrazují aktuální stav a předávají uživatelské akce zpět do
-ViewModelů.
-
-Toto rozdělení zjednodušuje údržbu aplikace. Pokud se změní způsob
-načítání dat ze serveru, není nutné měnit samotné vykreslení
-obrazovek. Stejně tak lze upravovat vzhled komponent bez zásahu do
-serverové komunikace.
-
-\subsection{Serverová část}
-
-Serverová část je rozdělena podle hlavních oblastí systému. Samostatné
-routy řeší přihlášení, položky, doklady, pohyby, uživatele a sklady.
-Každá routa obsahuje endpointy související s danou oblastí.
-
-Například práce s položkami je oddělena od práce se skladovými
-doklady. Díky tomu je kód přehlednější a nové funkce lze přidávat do
-konkrétní části serveru bez nutnosti upravovat celý server.
-
-Na serveru jsou také vyčleněny společné pomocné funkce. Ty slouží
-například pro čtení parametrů z požadavku nebo pro jednotné vytváření
-HTTP chyb. Díky tomu se neopakuje stejná logika v každé routě.
-
-\subsection{Databázová část}
-
-Databáze obsahuje samostatné tabulky pro uživatele, sklady, položky,
-kódy položek, množství položek na skladě a skladové doklady. Vazby
-mezi tabulkami jsou řešeny pomocí cizích klíčů.
-
-Aktuální množství položek na skladě je uloženo v tabulce
-\texttt{warehouse\_items}. Skladové doklady jsou uloženy v tabulkách
-\texttt{stock\_documents} a \texttt{stock\_document\_items}. Díky tomu
-je možné zvlášť evidovat aktuální stav skladu a zároveň uchovávat
-historii provedených příjmů a výdejů.
-
-Při vytvoření nebo úpravě dokladu server aktualizuje odpovídající
-skladové množství. Tato logika je ponechána na serveru, aby nemohlo
-dojít k nekonzistentním změnám pouze na straně mobilní aplikace.
+Serverová část je rozdělena do samostatných rout podle oblastí systému,
+například položky, doklady, pohyby, uživatelé a sklady. Společné
+pomocné funkce slouží například pro čtení parametrů požadavku a
+jednotné vytváření HTTP chyb.
 
 \chapter{Datový model}
 
@@ -243,50 +176,65 @@ Základní testovací data jsou vložena pomocí souboru \texttt{seed.sql}.
 
 Následující tabulka shrnuje hlavní databázové tabulky a jejich význam.
 
-\begin{table}[H]
-\centering
-\begin{tabular}{|l|p{9cm}|}
+\begin{longtable}{|p{4cm}|p{8.7cm}|}
+\caption{Přehled hlavních databázových tabulek}
+\label{tab:databazove-tabulky} \\
 \hline
 \textbf{Tabulka} & \textbf{Význam} \\
 \hline
+\endfirsthead
+
+\hline
+\textbf{Tabulka} & \textbf{Význam} \\
+\hline
+\endhead
+
 \texttt{roles} &
 Uživatelské role, například skladník nebo administrátor. \\
 \hline
+
 \texttt{users} &
 Uživatelé aplikace, jejich přihlašovací údaje, jméno, příjmení,
 role a informace o aktivitě účtu. \\
 \hline
+
 \texttt{warehouses} &
 Sklady, jejich názvy, kódy, umístění a informace o aktivitě. \\
 \hline
+
 \texttt{items} &
 Skladové položky, jejich název, jednotka, poznámka a název souboru
 s fotografií. \\
 \hline
+
 \texttt{item\_codes} &
 Kódy skladových položek. Jedna položka může mít více různých kódů. \\
 \hline
+
 \texttt{code\_types} &
 Typy kódů, například EAN, QR nebo interní kód. \\
 \hline
+
 \texttt{warehouse\_items} &
 Aktuální množství konkrétní položky na konkrétním skladu,
 včetně umístění a minimálního množství. \\
 \hline
+
 \texttt{movement\_types} &
 Typy skladových pohybů a jejich směr, například příjem nebo výdej. \\
 \hline
+
 \texttt{stock\_documents} &
 Hlavičky skladových dokladů, například číslo dokladu, sklad,
 typ pohybu, stav a uživatelé. \\
 \hline
+
 \texttt{stock\_document\_items} &
 Jednotlivé položky skladových dokladů, tedy položka, množství
 a poznámka. \\
 \hline
-\end{tabular}
-\caption{Přehled hlavních databázových tabulek}
-\end{table}
+
+\end{longtable}
 
 \section{Uživatelé a sklady}
 
@@ -352,6 +300,470 @@ ve skladu a současně ponechává uložený doklad v historii.
 Díky tomu lze v detailu položky zobrazit nejen aktuální množství, ale
 také seznam pohybů, které se dané položky týkají.
 
+\chapter{Uživatelské rozhraní}
+
+Uživatelské rozhraní je navrženo pro použití na mobilním telefonu.
+Důležité akce jsou proto umístěny převážně do spodní části obrazovky,
+kde jsou dobře dostupné při ovládání jednou rukou.
+
+Aplikace používá jednotný vzhled karet, seznamů, dialogů a spodních
+akčních tlačítek. Opakované části rozhraní jsou vyčleněny do
+samostatných komponent, aby bylo možné zachovat stejné chování a vzhled
+na více obrazovkách.
+
+Aplikace podporuje světlý i tmavý režim. Pro oba režimy je definována
+samostatná barevná paleta, aby byly texty, tlačítka a vstupní pole
+dobře čitelné. Barvy se tedy pouze neinvertují automaticky, ale jsou
+upraveny zvlášť pro světlé a tmavé prostředí.
+
+\section{Přihlášení a hlavní obrazovka}
+
+Po spuštění aplikace se zobrazí přihlašovací obrazovka. Uživatel zadá
+uživatelské jméno a heslo. Přihlášení je ověřováno na serveru. Mobilní
+aplikace odešle zadané údaje na serverový endpoint pro přihlášení
+a podle odpovědi zobrazí hlavní obrazovku nebo chybovou zprávu.
+
+Hlavní obrazovka obsahuje horní záhlaví s názvem aktuálního skladu
+a jménem přihlášeného uživatele. V záhlaví je dostupné také rozbalovací
+menu, které obsahuje dialog \uv{O aplikaci} a možnost odhlášení.
+
+Pod záhlavím je hlavní navigace aplikace. Uživatel může přepínat mezi
+částmi Historie, Položky, Příjem a Výdej. Tato navigace je viditelná
+pouze v hlavních částech aplikace. Při otevření detailu, formuláře
+nebo skeneru se navigace skryje, aby měl uživatel více místa pro
+aktuální úkol.
+
+\section{Položky a detail položky}
+
+Obrazovka položek zobrazuje seznam skladových položek. U každé položky
+je zobrazen její název, aktuální množství, umístění a případně
+poznámka. Součástí obrazovky je vyhledávací pole, které umožňuje
+vyhledávat podle názvu položky i podle jejího kódu.
+Na spodní části obrazovky je umístěno tlačítko pro spuštění skenování.
+
+Po kliknutí na položku se zobrazí její detail. Detail obsahuje
+fotografii produktu, aktuální množství, umístění, minimální množství
+a poznámku. Název skladu se v detailu neopakuje, protože aktuální sklad
+je zobrazen v hlavičce aplikace.
+
+Součástí detailu je také historie pohybů konkrétní položky. Uživatel
+tak vidí, kdy byla položka přijata nebo vydána a kdo daný pohyb
+vytvořil. Pohyby jsou doplněny barevným signalizačním proužkem, který
+pomáhá rychle rozlišit příjem a výdej.
+
+Z detailu položky lze otevřít obrazovku pro editaci. Uživatel může
+upravit základní údaje položky a změnit její fotografii. Fotografii
+lze vybrat z galerie nebo pořídit pomocí kamery. Po uložení je
+fotografie odeslána na server a následně je v aplikaci načítána ze
+serverové URL adresy.
+
+\section{Příjem a výdej}
+
+Obrazovky příjmu a výdeje slouží k vytvoření skladového dokladu.
+Obě obrazovky mají podobné ovládání, protože v obou případech uživatel
+pracuje se seznamem položek a množstvím. Rozdíl je hlavně v dopadu na
+skladové množství.
+
+Příjem množství položek na skladě zvyšuje. Výdej naopak množství
+snižuje. Při výdeji aplikace kontroluje, zda uživatel nevydává větší
+množství, než je aktuálně dostupné na skladě.
+
+Položku lze do dokladu přidat dvěma způsoby. První možností je
+skenování čárového nebo QR kódu. Druhou možností je ruční vyhledání
+položky podle názvu nebo kódu.
+
+Při příjmu je možné založit novou položku, pokud naskenovaný kód nebo
+hledaná položka v systému ještě neexistuje. Při výdeji tato možnost
+není dostupná, protože vydávat lze pouze položky, které už jsou ve
+skladu evidované.
+
+Vybrané položky jsou zobrazeny v seznamu rozpracovaného dokladu.
+Uživatel může položku z dokladu upravit, změnit množství nebo ji
+odebrat. Po uložení dokladu se změny odešlou na server, který vytvoří
+doklad a aktualizuje množství ve skladu.
+
+\section{Skenování kódů}
+
+Skenování kódů je použito na více místech aplikace. Uživatel ho může
+spustit ze seznamu položek, kde slouží k rychlému dohledání položky.
+Dále je skenování použito při přidávání položky do příjmového nebo
+výdejového dokladu.
+
+Obrazovka skeneru obsahuje náhled z kamery a ovládací tlačítka.
+Pokud je rozpoznán kód, aplikace jej použije pro vyhledání odpovídající
+položky. Pokud kód není nalezen v databázi, aplikace nabídne další
+postup podle aktuálního kontextu.
+
+Při příjmu může uživatel z neznámého kódu založit novou položku.
+Při výdeji může uživatel pouze vybrat existující položku, protože
+výdej nové neevidované položky by nedával smysl.
+
+Součástí skeneru je také možnost ručního zadání. Tato možnost je
+důležitá v situacích, kdy kód nelze dobře naskenovat, například kvůli
+poškozenému štítku nebo špatným světelným podmínkám.
+
+\section{Historie a editace dokladů}
+
+Obrazovka historie zobrazuje vytvořené skladové doklady. U každého
+dokladu je zobrazen typ pohybu, číslo dokladu, datum vytvoření,
+uživatel, který doklad vytvořil, a počet položek.
+
+Jednotlivé řádky historie obsahují barevný signalizační proužek.
+Ten pomáhá rychle rozlišit příjem a výdej a zlepšuje orientaci
+v seznamu dokladů.
+
+Po kliknutí na doklad se zobrazí jeho detail. Detail obsahuje základní
+informace o dokladu a seznam položek, které doklad obsahuje.
+
+Aplikace umožňuje upravit již vytvořený doklad. Při editaci se načte
+původní obsah dokladu a uživatel může změnit jeho položky, množství
+nebo poznámku.
+
+Při uložení upraveného dokladu server vyhodnotí rozdíl mezi původním
+a novým stavem dokladu. Podle tohoto rozdílu upraví skladové množství.
+Díky tomu není nutné celý původní doklad rušit a vytvářet nový.
+
+\chapter{Kontrola vstupů}
+
+Aplikace obsahuje kontrolu vstupů na straně mobilní aplikace i na
+straně serveru. Cílem je zabránit tomu, aby uživatel mohl zadat
+nesmyslná data nebo aby se aplikace při chybě zachovala neočekávaně.
+
+Na straně mobilní aplikace jsou kontrolovány hlavně údaje zadávané
+uživatelem ve formulářích. Při vytváření příjmu nebo výdeje je
+kontrolováno množství položky. Uživatel nemůže přidat položku
+s neplatným nebo nulovým množstvím. Při výdeji se navíc kontroluje,
+zda uživatel nevydává větší množství, než je aktuálně dostupné na
+skladě.
+
+Při zakládání nebo editaci položky je kontrolováno vyplnění povinných
+údajů, například názvu položky. U číselných polí, jako je minimální
+množství, je vstup omezen na číselnou hodnotu.
+
+Server provádí vlastní kontrolu požadavků nezávisle na mobilní
+aplikaci. Kontroluje například existenci položek, platnost množství,
+povinné údaje dokladu a duplicitu kódů položek. Díky tomu není
+správnost dat závislá pouze na klientské aplikaci.
+
+Při chybě server vrací odpověď s odpovídajícím HTTP stavovým kódem
+a chybovou zprávou. Mobilní aplikace tuto zprávu zobrazí uživateli
+v dialogu nebo jiném chybovém prvku.
+
+Mezi příklady kontrol patří:
+
+\begin{itemize}
+    \item kontrola vyplnění uživatelského jména a hesla při přihlášení,
+    \item kontrola názvu položky při zakládání produktu,
+    \item kontrola platného množství při příjmu a výdeji,
+    \item kontrola dostupného množství při výdeji,
+    \item kontrola existence položky při vytváření dokladu,
+    \item kontrola duplicitního kódu položky,
+    \item kontrola typu a velikosti nahrávaného obrázku.
+\end{itemize}
+
+Kontrola vstupů je řešena na více úrovních proto, aby aplikace byla
+odolnější vůči chybám uživatele i vůči nesprávným požadavkům na server.
+
+% \chapter{Testování použitelnosti}
+
+% Testování použitelnosti proběhlo formou praktického vyzkoušení aplikace.
+% Testerům nebyl předán přesný písemný seznam kroků. Cílem bylo zjistit,
+% zda jsou hlavní funkce aplikace srozumitelné i bez podrobného návodu.
+
+% U části testování jsem byl přítomen a testerům jsem pouze slovně zadal,
+% jaký úkol mají v aplikaci provést, například vytvořit příjem, najít
+% položku nebo provést výdej. Následně jsem sledoval, zda dokážou úkol
+% splnit, jak dlouho jim orientace v aplikaci trvá a u kterých částí
+% váhají.
+
+% U zadavatele aplikace probíhalo testování samostatně a průběžně.
+% Zadavatel aplikaci zkoušel nad aktuální verzí projektu a jeho připomínky
+% slouží také jako podklad pro další vývoj, protože projekt bude dále
+% rozšiřován.
+
+% Testeři zkoušeli především přihlášení, vyhledávání položek, skenování
+% kódů, zařazení položky do skladu, výdej položky ze skladu, editaci
+% položek, editaci skladových dokladů a práci s historií.
+
+% \section{Tester 1}
+
+% Testerka vyzkoušela příjem položky, výdej položky, založení nového
+% produktu, editaci vytvořených záznamů a vyhledávání položek.
+
+% \textbf{Vyjádření testerky:}
+
+% \begin{quote}
+% Užívání aplikace je pohodlné, rychlé a velmi přehledné. Oceňuji funkci
+% pro skenování kódu a možnost přidání fotky produktu. Příjemná by byla
+% možnost překlikávání mezi funkcemi za pomoci přejetí prstu po displeji
+% ze strany na stranu. V aplikaci jsem ozkoušela naskenování produktu,
+% zařazení do skladu a vydání ze skladu. Dále jsem otestovala také
+% vyhledávání. Všechny úkony proběhly bezchybně.
+% \end{quote}
+
+% \textbf{Shrnutí:}
+
+% Testerka hodnotila aplikaci jako přehlednou a rychlou. Pozitivně
+% vnímala hlavně skenování kódu a možnost přidat fotografii produktu.
+% Jako návrh na zlepšení uvedla možnost přepínání mezi hlavními částmi
+% aplikace přejetím prstu.
+
+% \section{Tester 2}
+
+% Testerem byl zadavatel aplikace. Aplikaci průběžně testoval samostatně
+% a zároveň se mnou konzultoval její aktuální stav. Jeho vyjádření se
+% proto vztahuje k aktuální verzi projektu a obsahuje také návrhy, které
+% budou sloužit jako podklad pro další vývoj aplikace.
+
+% \textbf{Vyjádření testera:}
+
+% \begin{quote}
+% Aplikace funguje spolehlivě, prostředí a ovládání je intuitivní.
+% Jedná se o fyzický stav skladu, což je hlavní požadavek, který jsem
+% od aplikace požadoval.
+
+% Návrhy na úpravy a rozšíření aplikace:
+% \begin{itemize}
+%     \item při výběru položky ve volbě položky uvítám v Historii pohybů
+%     možnost přechodu na vybraný příjem nebo výdej, např. volbou
+%     dialogového okna „Otevřít Výdej/Příjem - A/N",
+%     \item doplnění data dodání, například Datum zdanitelného plnění,
+%     pro možnost snadnějšího dohledání v účetnictví,
+%     \item rozšířit o možnost zadání zakázky ve Výdeji. Zakázky budou
+%     zadány administrátorem, skladník pouze vybere z nabízených.
+% \end{itemize}
+% \end{quote}
+
+% \textbf{Shrnutí:}
+
+% Tester hodnotil aplikaci jako spolehlivou a intuitivní. Za důležité
+% považoval, že aplikace pracuje s fyzickým stavem skladu. Návrhy na
+% zlepšení směřovaly především k hlubšímu propojení historie pohybů
+% s doklady a k rozšíření aplikace o údaje využitelné v účetnictví
+% a zakázkách.
+
+% \section{Tester 3}
+
+% Třetím testerem byl uživatel, který má zkušenost s běžnou prací ve
+% skladu. Testování bylo zaměřeno hlavně na to, zda je aplikace
+% srozumitelná při praktickém použití a zda může nahradit ruční evidenci
+% na papír.
+
+% Tester vyzkoušel přihlášení, vyhledání položky, skenování kódu,
+% vytvoření příjmu, vytvoření výdeje a kontrolu historie pohybů.
+
+% \textbf{Vyjádření testera:}
+
+% \begin{quote}
+% Aplikace se mi používala dobře. Věděl jsem, kam mám kliknout, a práce
+% s příjmem i výdejem byla celkem jednoduchá.
+
+% Skenování kódů je dobrá věc, protože když má zboží kód, je to rychlé
+% a člověk nemusí nic vypisovat. U některých věcí ale kód není, takže se
+% musí hledat ručně podle názvu. To je pomalejší, ale pořád lepší než si
+% to psát bokem na papír.
+
+% Líbí se mi, že se dá podívat do historie a zjistit, co se s položkou
+% dělalo. Pro běžnou práci ve skladu mi aplikace přijde použitelná.
+% \end{quote}
+
+% \textbf{Shrnutí:}
+
+% Tester hodnotil aplikaci jako přehlednou a použitelnou pro běžnou
+% skladovou práci. Pozitivně hodnotil hlavně skenování kódů a historii
+% pohybů. Jako omezení uvedl, že ne všechny produkty musí mít kód, a
+% proto je u těchto položek nutné použít ruční vyhledávání.
+
+% \section{Shrnutí nalezených problémů a návrhů}
+
+% Během testování nebyla nalezena chyba, která by bránila dokončení
+% hlavních úkonů. Testeři uvedli, že aplikace je použitelná, přehledná
+% a ovládání je srozumitelné.
+
+% Z testování vyplynuly následující návrhy na zlepšení:
+
+% \begin{itemize}
+%     \item umožnit přepínání mezi hlavními částmi aplikace přejetím
+%     prstu,
+%     \item umožnit přechod z historie pohybů položky přímo na související
+%     příjem nebo výdej,
+%     \item doplnit datum dodání nebo datum zdanitelného plnění,
+%     \item rozšířit výdej o možnost přiřazení zakázky,
+%     \item zjednodušit práci s položkami, které nemají čárový nebo QR kód.
+% \end{itemize}
+
+% \section{Reakce autora na testování}
+
+% Na základě testování bylo ověřeno, že hlavní funkce aplikace jsou pro
+% uživatele srozumitelné a funkční. Pozitivně bylo hodnoceno především
+% skenování kódů, přehlednost prostředí, práce s historií a možnost
+% práce s fotografiemi produktů.
+
+% Stav aplikace byl průběžně konzultován se zadavatelem práce, který
+% aplikaci zároveň samostatně testoval. Jeho připomínky proto beru jako
+% poznámky k aktuální verzi projektu i jako podklady pro další rozvoj
+% aplikace. Systém je navržen tak, aby na ně bylo možné v budoucnu
+% navázat.
+
+% Některé návrhy testerů nebyly do aktuální verze zapracovány, protože
+% přesahují rozsah semestrální práce. Jedná se například o evidenci
+% zakázek nebo doplnění údajů využitelných v účetnictví. Tyto návrhy jsou
+% vhodné pro další rozšíření aplikace.
+
+% Návrh na přepínání hlavních částí aplikace přejetím prstu byl po
+% konzultaci se zadavatelem vyhodnocen jako méně vhodný. Aplikace je
+% určena pro skladové použití, kde uživatel často manipuluje s telefonem
+% při práci s materiálem. Gesto přejetí by mohlo vést k nechtěnému
+% přepnutí obrazovky a tím zhoršit orientaci v aplikaci. Proto jsem tento
+% návrh do dalšího vývoje nezařadil.
+
+% Návrh na přechod z historie pohybů přímo na související doklad považuji
+% za užitečný. V aktuální verzi aplikace je možné zobrazit historii
+% dokladů a detail dokladu samostatně, ale přímé propojení z historie
+% pohybu položky by mohlo zlepšit použitelnost aplikace.
+
+% Připomínka k položkám bez kódu je také relevantní. Aplikace kromě
+% skenování obsahuje ruční vyhledávání podle názvu, aby bylo možné
+% pracovat i s položkami, které čárový nebo QR kód nemají. Do budoucna by
+% bylo možné tento postup dále zrychlit například lepším našeptáváním
+% nebo zobrazením často používaných položek.
+
+% \chapter{Zhodnocení splnění bodů hodnocení}
+
+% Tato kapitola shrnuje oblasti hodnocení, které jsou v práci naplněny.
+% Pozornost je věnována především částem, které jsou pro projekt
+% nejdůležitější.
+
+% \begin{itemize}
+%     \item \textbf{Smysluplnost zadání:}
+%     aplikace řeší praktický problém evidence skladových položek,
+%     příjmů a výdejů. Nejde pouze o obecné rozhraní k databázi, ale
+%     o aplikaci navrženou pro konkrétní pracovní postup ve skladu.
+
+%     \item \textbf{Komplexnost aplikace:}
+%     systém se skládá z mobilní aplikace, serverové části a databáze.
+%     Součástí aplikace je přihlášení, správa položek, příjem, výdej,
+%     editace dokladů, historie, skenování kódů a práce s fotografiemi
+%     produktů.
+
+%     \item \textbf{Kvalita návrhu aplikace:}
+%     projekt je rozdělen do více vrstev. Mobilní aplikace obsahuje
+%     datové modely, síťovou vrstvu, ViewModely a Composable obrazovky.
+%     Server je rozdělen do samostatných rout podle oblastí systému.
+
+%     \item \textbf{Znovupoužitelnost kódu:}
+%     opakované části byly vyčleněny do společných komponent a funkcí.
+%     V mobilní aplikaci se jedná například o \texttt{AppCard},\newline
+%     \texttt{AppListCard}, \texttt{MovementIndicatorRow}, společné
+%     spodní akční lišty a obrazovky pro vyhledávání. Na serveru jsou
+%     vyčleněny pomocné funkce pro práci s požadavky, chybami a
+%     validací dat.
+
+%     \item \textbf{Fungování aplikace:}
+%     aplikace umožňuje ukládat i načítat data. Položky, doklady,
+%     množství na skladě a historie jsou ukládány v databázi PostgreSQL.
+%     Fotografie produktů jsou ukládány na server a zobrazovány
+%     v mobilní aplikaci.
+
+%     \item \textbf{Komplexní GUI:}
+%     aplikace obsahuje více propojených obrazovek. Změny provedené při
+%     příjmu, výdeji nebo editaci položky se projeví v seznamech,
+%     detailu položky a historii.
+
+%     \item \textbf{User experience:}
+%     uživatelské rozhraní je navrženo pro mobilní telefon. Důležité
+%     akce jsou umístěny ve spodní části obrazovky, skener má samostatné
+%     zobrazení a při otevření detailu nebo formuláře se skrývá hlavní
+%     navigace, aby měl uživatel více prostoru.
+
+%     \item \textbf{Kontrola vstupů:}
+%     aplikace kontroluje platné množství, dostupné množství při výdeji,
+%     povinné údaje položky, existenci položek a duplicitu kódů. Kontroly
+%     jsou řešeny na straně mobilní aplikace i serveru.
+
+%     \item \textbf{Lambda výrazy k obsluhám:}
+%     aplikace využívá lambda výrazy v Jetpack Compose například pro
+%     obsluhu tlačítek, textových polí, výběru položek a předávání akcí
+%     mezi obrazovkami.
+
+%     \item \textbf{Vlastní komponenty uživatelského rozhraní:}
+%     byly vytvořeny vlastní komponenty pro karty, seznamy, spodní akční
+%     lišty, skenování kódů a barevné označení typu skladového pohybu.
+
+%     \item \textbf{Využití databáze pro backend:}
+%     aplikace používá databázi PostgreSQL s více provázanými tabulkami.
+%     Datový model obsahuje položky, sklady, uživatele, kódy položek,
+%     skladové doklady a položky dokladů.
+
+%     \item \textbf{Síťová komunikace:}
+%     mobilní aplikace komunikuje se serverem pomocí REST API.
+%     Server vrací data ve formátu JSON a zpracovává požadavky mobilní
+%     aplikace.
+
+%     \item \textbf{Ukládání stavu:}
+%     stav skladu, položky, doklady, historie a fotografie produktů jsou
+%     ukládány na serveru a v databázi. Po opětovném spuštění aplikace
+%     jsou data znovu načtena.
+
+%     \item \textbf{Observable-Observer princip:}
+%     mobilní aplikace využívá ViewModely, \newline\texttt{StateFlow} a
+%     \texttt{collectAsState}. Uživatelské rozhraní pozoruje stav a při
+%     jeho změně se automaticky překresluje.
+
+%     \item \textbf{Binding vstupů:}
+%     textová pole ve formulářích jsou navázána na stav obrazovky.
+%     Změna hodnoty ve vstupním poli se promítá do ViewModelu a následně
+%     do zobrazení.
+
+%     \item \textbf{Využití komponent třetích stran:}
+%     aplikace využívá například Retrofit pro komunikaci se serverem,
+%     Coil pro načítání obrázků, CameraX pro práci s kamerou a ML Kit
+%     Barcode Scanning pro rozpoznávání čárových a QR kódů.
+
+%     \item \textbf{Spolupráce více zařízení:}
+%     systém je tvořen mobilním telefonem s Android aplikací, serverem
+%     a databází. Mobilní zařízení komunikuje se serverem v lokální síti.
+
+%     \item \textbf{Vlastní vykreslovaná komponenta:}
+%     ve skeneru je použit vlastní překryv nad náhledem kamery, který
+%     vykresluje oblast rozpoznaného kódu. V seznamech jsou také použity
+%     vlastní vizuální prvky pro rozlišení příjmů a výdejů.
+% \end{itemize}
+
+% Na základě uvedených bodů lze konstatovat, že práce naplňuje hlavní
+% požadavky hodnocení. Mezi nejdůležitější části projektu patří propojení
+% mobilní aplikace se serverem a databází, práce se skladovými doklady,
+% skenování kódů, kontrola množství při výdeji a udržitelný návrh
+% aplikace.
+
+\chapter{Závěr}
+
+Cílem semestrální práce bylo navrhnout a implementovat skladový systém,
+který umožní evidovat skladové položky a skladové pohyby pomocí mobilní
+aplikace. Výsledkem je aplikace složená z Android klienta, serverové
+části a databáze PostgreSQL.
+
+Aplikace umožňuje přihlášení uživatele, zobrazení položek na skladě,
+vyhledávání položek, skenování čárových a QR kódů, vytváření příjmů
+a výdejů, editaci dokladů, zobrazení historie a práci s fotografiemi
+produktů. Data jsou ukládána na server a do databáze, takže zůstávají
+dostupná i po opětovném spuštění aplikace.
+
+Při návrhu byl kladen důraz na použitelnost v prostředí skladu.
+Důležité akce jsou dostupné přímo z mobilní aplikace a skenování kódů
+umožňuje zrychlit práci s položkami. Současně aplikace obsahuje ruční
+vyhledávání, aby bylo možné pracovat i s položkami bez čárového nebo
+QR kódu.
+
+Projekt byl průběžně upravován tak, aby byl lépe udržovatelný.
+Opakované části uživatelského rozhraní i serverové logiky byly
+přesunuty do společných komponent a pomocných funkcí. Díky tomu je
+aplikace připravená na další rozšiřování.
+
+Do budoucna by bylo vhodné doplnit například přímý přechod z historie
+pohybu na související doklad, evidenci zakázek, doplnění dalších údajů
+pro účetnictví nebo lepší podporu více skladů. Tyto návrhy vyplynuly
+z testování a z konzultací se zadavatelem aplikace.
 
 
 \end{document}

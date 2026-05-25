@@ -51,7 +51,10 @@ data class DocumentDto(
     val itemsCount: Int,
 
     @SerializedName("total_quantity")
-    val totalQuantity: String
+    val totalQuantity: String,
+
+    @SerializedName("total_weight")
+    val totalWeight: String
 )
 
 data class DocumentDetailDto(
@@ -68,6 +71,12 @@ data class DocumentDetailDto(
 
     @SerializedName("updated_at")
     val updatedAt: String,
+
+    @SerializedName("total_quantity")
+    val totalQuantity: String,
+
+    @SerializedName("total_weight")
+    val totalWeight: String,
 
     @SerializedName("warehouse_id")
     val warehouseId: Int,
@@ -118,6 +127,13 @@ data class DocumentItemDto(
     val itemName: String,
 
     val unit: String,
+
+    @SerializedName("weight_per_unit")
+    val weightPerUnit: String,
+
+    @SerializedName("total_weight")
+    val totalWeight: String,
+
     val quantity: String,
     val note: String?,
 

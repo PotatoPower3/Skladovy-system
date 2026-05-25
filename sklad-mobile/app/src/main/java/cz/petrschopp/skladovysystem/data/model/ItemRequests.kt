@@ -5,6 +5,7 @@ data class CreateItemRequest(
     val code: String? = null,
     val codeType: String = "UNKNOWN",
     val unit: String = "ks",
+    val weightPerUnit: Double = 0.0,
     val imageFilename: String? = null,
     val note: String? = null,
     val warehouseId: Int = 1,
@@ -16,6 +17,7 @@ data class CreateItemRequest(
 data class UpdateItemRequest(
     val name: String? = null,
     val unit: String? = null,
+    val weightPerUnit: Double? = null,
     val imageFilename: String? = null,
     val note: String? = null,
     val active: Boolean? = null,

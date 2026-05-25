@@ -169,6 +169,8 @@ async function getDocumentDetail(documentId) {
       sd.note,
       sd.created_at,
       sd.updated_at,
+      COALESCE(SUM(sdi.quantity), 0)::numeric(12, 2) AS total_quantity,
+      COALESCE(SUM(sdi.quantity * i.weight_per_unit), 0)::numeric(12, 3) AS total_weight,
 
       w.id AS warehouse_id,
       w.name AS warehouse_name,
@@ -190,7 +192,15 @@ async function getDocumentDetail(documentId) {
     JOIN movement_types mt ON mt.id = sd.movement_type_id
     JOIN users cu ON cu.id = sd.created_by_user_id
     JOIN users uu ON uu.id = sd.updated_by_user_id
+    LEFT JOIN stock_document_items sdi ON sdi.document_id = sd.id
+    LEFT JOIN items i ON i.id = sdi.item_id
     WHERE sd.id = $1
+    GROUP BY
+      sd.id,
+      w.id,
+      mt.id,
+      cu.id,
+      uu.id
     LIMIT 1
     `,
     [documentId]
@@ -207,7 +217,9 @@ async function getDocumentDetail(documentId) {
       sdi.item_id,
       i.name AS item_name,
       i.unit,
+      i.weight_per_unit,
       sdi.quantity,
+      (sdi.quantity * i.weight_per_unit)::numeric(12, 3) AS total_weight,
       sdi.note,
       sdi.created_at,
       sdi.updated_at
@@ -517,12 +529,14 @@ router.get('/', async (req, res, next) => {
         uu.last_name AS updated_by_last_name,
 
         COUNT(sdi.id)::int AS items_count,
-        COALESCE(SUM(sdi.quantity), 0)::numeric(12, 2) AS total_quantity
+        COALESCE(SUM(sdi.quantity), 0)::numeric(12, 2) AS total_quantity,
+        COALESCE(SUM(sdi.quantity * i.weight_per_unit), 0)::numeric(12, 3) AS total_weight
       FROM stock_documents sd
       JOIN movement_types mt ON mt.id = sd.movement_type_id
       JOIN users cu ON cu.id = sd.created_by_user_id
       JOIN users uu ON uu.id = sd.updated_by_user_id
       LEFT JOIN stock_document_items sdi ON sdi.document_id = sd.id
+      LEFT JOIN items i ON i.id = sdi.item_id
       WHERE sd.warehouse_id = $1
         AND ($3::text IS NULL OR mt.code = $3)
       GROUP BY sd.id, mt.id, cu.id, uu.id

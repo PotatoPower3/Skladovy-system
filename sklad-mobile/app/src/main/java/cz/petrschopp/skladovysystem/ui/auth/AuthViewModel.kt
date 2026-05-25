@@ -15,10 +15,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import cz.petrschopp.skladovysystem.data.session.ServerConfigManager
 
 data class AuthUiState(
     val username: String = "",
     val password: String = "",
+    val serverIp: String = "",
+    val serverPort: String = "3000",
+    val isCheckingServerConfig: Boolean = false,
     val loggedUser: LoggedUser? = null,
     val isCheckingSession: Boolean = true,
     val isLoggingIn: Boolean = false,
@@ -29,6 +33,7 @@ data class AuthUiState(
 class AuthViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+    private var serverConfigManager: ServerConfigManager? = null
 
     private var sessionManager: SessionManager? = null
 
@@ -37,7 +42,20 @@ class AuthViewModel : ViewModel() {
             return
         }
 
-        sessionManager = SessionManager(context.applicationContext)
+        val appContext = context.applicationContext
+
+        sessionManager = SessionManager(appContext)
+        serverConfigManager = ServerConfigManager(appContext)
+
+        val serverConfig = serverConfigManager!!.getConfig()
+        ApiClient.configure(serverConfig.baseUrl)
+
+        updateState {
+            copy(
+                serverIp = serverConfig.serverIp,
+                serverPort = serverConfig.serverPort
+            )
+        }
 
         viewModelScope.launch {
             autoLogin()
@@ -176,10 +194,130 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    fun updateServerIp(value: String) = updateState {
+        copy(serverIp = value.trim(), errorMessage = null)
+    }
+
+    fun updateServerPort(value: String) {
+        val filteredValue = value.filter { it.isDigit() }
+
+        updateState {
+            copy(serverPort = filteredValue, errorMessage = null)
+        }
+    }
+
+    fun saveServerConfig() {
+        val state = _uiState.value
+        val ip = state.serverIp.trim()
+        val port = state.serverPort.ifBlank { "3000" }
+
+        if (!isValidServerHost(ip)) {
+            updateState {
+                copy(errorMessage = "Zadejte platnou IP adresu nebo název serveru bez http://.")
+            }
+            return
+        }
+
+        if (!isValidServerPort(port)) {
+            updateState {
+                copy(errorMessage = "Port musí být číslo v rozsahu 1 až 65535.")
+            }
+            return
+        }
+
+        val baseUrl = ApiClient.buildBaseUrl(
+            serverIp = ip,
+            serverPort = port
+        )
+
+        viewModelScope.launch {
+            try {
+                updateState {
+                    copy(
+                        isCheckingServerConfig = true,
+                        errorMessage = null,
+                        isNetworkError = false
+                    )
+                }
+
+                ApiClient.configure(baseUrl)
+                ApiClient.api.healthCheck()
+
+                serverConfigManager?.saveConfig(
+                    serverIp = ip,
+                    serverPort = port
+                )
+
+                updateState {
+                    copy(
+                        serverIp = ip,
+                        serverPort = port,
+                        isCheckingServerConfig = false,
+                        errorMessage = null,
+                        isNetworkError = false
+                    )
+                }
+            } catch (e: Exception) {
+                val currentConfig = serverConfigManager?.getConfig()
+
+                if (currentConfig != null) {
+                    ApiClient.configure(currentConfig.baseUrl)
+                }
+
+                updateState {
+                    copy(
+                        isCheckingServerConfig = false,
+                        errorMessage = e.toUserMessage("Na zadané adrese nebyl nalezen server."),
+                        isNetworkError = e.isNetworkError()
+                    )
+                }
+            }
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             sessionManager?.clearSession()
-            updateState { AuthUiState(isCheckingSession = false) }
+
+            val serverConfig = serverConfigManager?.getConfig()
+
+            updateState {
+                AuthUiState(
+                    serverIp = serverConfig?.serverIp ?: serverIp,
+                    serverPort = serverConfig?.serverPort ?: serverPort,
+                    isCheckingSession = false
+                )
+            }
+        }
+    }
+
+    private fun isValidServerHost(value: String): Boolean {
+        val host = value.trim()
+
+        if (host.isBlank()) return false
+        if (host.startsWith("http://") || host.startsWith("https://")) return false
+        if (host.contains("/")) return false
+        if (host.contains(" ")) return false
+
+        return true
+    }
+
+    private fun isValidServerPort(value: String): Boolean {
+        val port = value.toIntOrNull() ?: return false
+        return port in 1..65535
+    }
+
+    fun resetServerConfigInput() {
+        val serverConfig = serverConfigManager?.getConfig()
+
+        updateState {
+            copy(
+                serverIp = serverConfig?.serverIp ?: serverIp,
+                serverPort = serverConfig?.serverPort ?: serverPort,
+                errorMessage = null,
+                isNetworkError = false,
+                isCheckingServerConfig = false
+            )
         }
     }
 

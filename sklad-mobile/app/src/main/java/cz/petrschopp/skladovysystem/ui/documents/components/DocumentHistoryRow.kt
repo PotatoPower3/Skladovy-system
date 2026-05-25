@@ -1,6 +1,5 @@
 package cz.petrschopp.skladovysystem.ui.documents.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import cz.petrschopp.skladovysystem.data.model.DocumentDto
 import cz.petrschopp.skladovysystem.utils.formatDateTime
 import cz.petrschopp.skladovysystem.ui.common.MovementIndicatorRow
+import cz.petrschopp.skladovysystem.utils.formatQuantity
+import cz.petrschopp.skladovysystem.utils.formatWeight
 
 @Composable
 fun DocumentHistoryRow(
@@ -65,7 +66,7 @@ fun DocumentHistoryRow(
             }
 
             Text(
-                text = "Položek: ${document.itemsCount}",
+                text = "Položek: ${document.itemsCount} • Kusů: ${formatQuantity(document.totalQuantity)} • Hmotnost: ${formatWeight(document.totalWeight)} kg",
                 style = MaterialTheme.typography.bodySmall
             )
 

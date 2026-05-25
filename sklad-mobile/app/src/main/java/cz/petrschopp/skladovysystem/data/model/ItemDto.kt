@@ -8,6 +8,10 @@ data class ItemDto(
     val codes: List<ItemCodeDto> = emptyList(),
     val quantity: String,
     val unit: String,
+
+    @SerializedName("weight_per_unit")
+    val weightPerUnit: String?,
+
     val location: String?,
 
     @SerializedName("min_quantity")

@@ -10,6 +10,7 @@ import cz.petrschopp.skladovysystem.ui.common.AppListCard
 import cz.petrschopp.skladovysystem.ui.common.AutoRefreshEffect
 import cz.petrschopp.skladovysystem.ui.common.SearchableListScreen
 import cz.petrschopp.skladovysystem.ui.items.components.ItemRow
+import java.text.Normalizer
 
 @Composable
 fun ItemsScreen(
@@ -102,13 +103,16 @@ private fun ItemsListContent(
 
     val filteredItems by remember(uiState.items, searchQuery) {
         derivedStateOf {
-            val query = searchQuery.trim()
+            val query = normalizeSearchText(searchQuery.trim())
+
             if (query.isBlank()) {
                 uiState.items
             } else {
                 uiState.items.filter { item ->
-                    item.name.contains(query, ignoreCase = true) ||
-                            item.codes.any { it.code.contains(query, ignoreCase = true) }
+                    normalizeSearchText(item.name).contains(query) ||
+                            item.codes.any { code ->
+                                normalizeSearchText(code.code).contains(query)
+                            }
                 }
             }
         }
@@ -141,4 +145,9 @@ private fun ItemsListContent(
             )
         }
     }
+}
+
+private fun normalizeSearchText(value: String): String {
+    return Normalizer.normalize(value.lowercase(), Normalizer.Form.NFD)
+        .replace("\\p{Mn}+".toRegex(), "")
 }

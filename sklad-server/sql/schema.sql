@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS item_codes CASCADE;
 DROP TABLE IF EXISTS code_types CASCADE;
 DROP TABLE IF EXISTS items CASCADE;
 DROP TABLE IF EXISTS movement_types CASCADE;
+DROP TABLE IF EXISTS warehouse_locations CASCADE;
 DROP TABLE IF EXISTS warehouses CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
@@ -41,6 +42,19 @@ CREATE TABLE warehouses (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE warehouse_locations (
+  id SERIAL PRIMARY KEY,
+  warehouse_id INTEGER NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
+  code VARCHAR(50) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT warehouse_locations_unique_code_per_warehouse
+    UNIQUE (warehouse_id, code)
+);
+
 CREATE TABLE movement_types (
   id SERIAL PRIMARY KEY,
   code VARCHAR(50) NOT NULL UNIQUE,
@@ -64,6 +78,7 @@ CREATE TABLE items (
   id SERIAL PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
   unit VARCHAR(20) NOT NULL DEFAULT 'ks',
+  weight_per_unit NUMERIC(12, 3) NOT NULL DEFAULT 0 CHECK (weight_per_unit >= 0),
   image_filename TEXT,
   note TEXT,
   active BOOLEAN NOT NULL DEFAULT true,
@@ -122,6 +137,9 @@ CREATE INDEX idx_users_role_id ON users(role_id);
 CREATE INDEX idx_users_username ON users(username);
 
 CREATE INDEX idx_warehouses_code ON warehouses(code);
+
+CREATE INDEX idx_warehouse_locations_warehouse_id ON warehouse_locations(warehouse_id);
+CREATE INDEX idx_warehouse_locations_active ON warehouse_locations(active);
 
 CREATE INDEX idx_items_name ON items(name);
 CREATE INDEX idx_items_active ON items(active);

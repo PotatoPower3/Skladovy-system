@@ -7,9 +7,15 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "db:reset": "psql -U postgres -d sklad -f schema.sql",
-    "db:seed": "psql -U postgres -d sklad -f seed.sql",
-    "db:setup": "npm run db:reset && npm run db:seed"
+
+    "db:reset": "node scripts/run-sql.js sql/schema.sql",
+
+    "db:seed:base": "node scripts/run-sql.js sql/seed-base.sql",
+    "db:seed:demo": "node scripts/run-sql.js sql/seed-demo.sql",
+    "db:seed": "npm run db:seed:base && npm run db:seed:demo",
+
+    "db:setup": "npm run db:reset && npm run db:seed",
+    "db:setup:base": "npm run db:reset && npm run db:seed:base"
   },
   "dependencies": {
     "cors": "^2.8.5",

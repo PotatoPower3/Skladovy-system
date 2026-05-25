@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cz.petrschopp.skladovysystem.data.model.ItemDto
 import cz.petrschopp.skladovysystem.data.model.UpdateItemRequest
+import cz.petrschopp.skladovysystem.data.model.WarehouseLocationDto
 import cz.petrschopp.skladovysystem.data.remote.ApiClient
 import cz.petrschopp.skladovysystem.utils.isNetworkError
 import cz.petrschopp.skladovysystem.utils.toUserMessage
@@ -24,9 +25,12 @@ data class ItemEditUiState(
     val name: String = "",
     val location: String = "",
     val minQuantity: String = "0",
+    val weightPerUnit: String = "0",
     val note: String = "",
     val imageFilename: String? = null,
     val selectedImageUri: Uri? = null,
+    val warehouseLocations: List<WarehouseLocationDto> = emptyList(),
+    val isLoadingLocations: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val isNetworkError: Boolean = false
@@ -50,11 +54,14 @@ class ItemEditViewModel : ViewModel() {
                 name = item.name,
                 location = item.location.orEmpty(),
                 minQuantity = item.minQuantity ?: "0",
+                weightPerUnit = item.weightPerUnit ?: "0",
                 note = item.note.orEmpty(),
                 imageFilename = item.imageFilename,
                 selectedImageUri = null
             )
         }
+
+        loadWarehouseLocations(item.warehouseId)
     }
 
     fun updateName(value: String) = updateState {
@@ -65,8 +72,41 @@ class ItemEditViewModel : ViewModel() {
         copy(location = value)
     }
 
-    fun updateMinQuantity(value: String) = updateState {
-        copy(minQuantity = value)
+    fun updateMinQuantity(value: String) {
+        val filteredValue = value.filter { it.isDigit() }
+
+        updateState {
+            copy(
+                minQuantity = filteredValue,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun updateWeightPerUnit(value: String) {
+        val normalizedInput = value.replace(',', '.')
+
+        val filteredValue = buildString {
+            var hasDecimalSeparator = false
+
+            normalizedInput.forEach { char ->
+                when {
+                    char.isDigit() -> append(char)
+
+                    char == '.' && !hasDecimalSeparator -> {
+                        append(char)
+                        hasDecimalSeparator = true
+                    }
+                }
+            }
+        }
+
+        updateState {
+            copy(
+                weightPerUnit = filteredValue,
+                errorMessage = null
+            )
+        }
     }
 
     fun updateNote(value: String) = updateState {
@@ -89,10 +129,25 @@ class ItemEditViewModel : ViewModel() {
             return
         }
 
-        val minQuantity = state.minQuantity
+        val minQuantity = state.minQuantity.toDoubleOrNull()
+
+        if (minQuantity == null || minQuantity < 0.0) {
+            updateState {
+                copy(errorMessage = "Minimální množství musí být číslo 0 nebo větší.")
+            }
+            return
+        }
+
+        val weightPerUnit = state.weightPerUnit
             .replace(",", ".")
             .toDoubleOrNull()
-            ?: 0.0
+
+        if (weightPerUnit == null || weightPerUnit < 0.0) {
+            updateState {
+                copy(errorMessage = "Hmotnost kusu musí být číslo 0 nebo větší.")
+            }
+            return
+        }
 
         viewModelScope.launch {
             updateState {
@@ -117,6 +172,7 @@ class ItemEditViewModel : ViewModel() {
                         request = UpdateItemRequest(
                             name = state.name.trim(),
                             unit = item.unit,
+                            weightPerUnit = weightPerUnit,
                             imageFilename = item.imageFilename,
                             note = state.note.ifBlank { null },
                             active = null,
@@ -209,5 +265,32 @@ class ItemEditViewModel : ViewModel() {
 
     private fun updateState(updater: ItemEditUiState.() -> ItemEditUiState) {
         _uiState.value = _uiState.value.updater()
+    }
+
+    private fun loadWarehouseLocations(warehouseId: Int) {
+        viewModelScope.launch {
+            updateState {
+                copy(isLoadingLocations = true)
+            }
+
+            try {
+                val locations = ApiClient.api.getWarehouseLocations(warehouseId)
+
+                updateState {
+                    copy(
+                        warehouseLocations = locations,
+                        isLoadingLocations = false
+                    )
+                }
+            } catch (e: Exception) {
+                updateState {
+                    copy(
+                        isLoadingLocations = false,
+                        errorMessage = e.toUserMessage("Nepodařilo se načíst pozice skladu."),
+                        isNetworkError = e.isNetworkError()
+                    )
+                }
+            }
+        }
     }
 }

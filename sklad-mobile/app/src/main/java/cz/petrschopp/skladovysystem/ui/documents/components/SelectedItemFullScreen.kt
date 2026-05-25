@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import cz.petrschopp.skladovysystem.ui.common.AppCard
+import cz.petrschopp.skladovysystem.utils.formatWeight
 
 @Composable
 fun SelectedItemFullScreen(
@@ -76,7 +77,10 @@ fun SelectedItemFullScreen(
             }
 
             item {
-                SelectedItemInfoCard(item = item)
+                SelectedItemInfoCard(
+                    item = item,
+                    quantityText = quantityText
+                )
             }
 
             item {
@@ -121,8 +125,21 @@ fun SelectedItemFullScreen(
 
 @Composable
 private fun SelectedItemInfoCard(
-    item: ItemDto
+    item: ItemDto,
+    quantityText: String
 ) {
+    val quantity = quantityText
+        .replace(",", ".")
+        .toDoubleOrNull()
+        ?: 0.0
+
+    val weightPerUnit = item.weightPerUnit
+        ?.replace(",", ".")
+        ?.toDoubleOrNull()
+        ?: 0.0
+
+    val totalWeight = quantity * weightPerUnit
+
     AppCard(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -131,11 +148,8 @@ private fun SelectedItemInfoCard(
         ) {
             Text("Aktuálně: ${formatQuantity(item.quantity)} ${item.unit}")
             Text("Umístění: ${item.location ?: "neuvedeno"}")
-
-            val mainCode = item.codes.firstOrNull()?.code
-            if (!mainCode.isNullOrBlank()) {
-                Text("Kód: $mainCode")
-            }
+            Text("Hmotnost 1 ks: ${formatWeight(weightPerUnit.toString())} kg")
+            Text("Hmotnost pro množství: ${formatWeight(totalWeight.toString())} kg")
         }
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import cz.petrschopp.skladovysystem.data.model.DocumentDetailDto
 import cz.petrschopp.skladovysystem.ui.common.AppCard
 import cz.petrschopp.skladovysystem.utils.formatDateTime
+import cz.petrschopp.skladovysystem.utils.formatQuantity
+import cz.petrschopp.skladovysystem.utils.formatWeight
 
 @Composable
 fun DocumentInfoCard(
@@ -34,8 +36,8 @@ fun DocumentInfoCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text("Stav: ${document.status}")
-            Text("Sklad: ${document.warehouseName}")
+//            Text("Stav: ${document.status}")
+//            Text("Sklad: ${document.warehouseName}")
             Text("Vytvořil: ${document.createdByFirstName} ${document.createdByLastName}")
             Text("Vytvořeno: ${formatDateTime(document.createdAt)}")
 
@@ -43,6 +45,9 @@ fun DocumentInfoCard(
                 Text("Změnil: ${document.updatedByFirstName} ${document.updatedByLastName}")
                 Text("Změněno: ${formatDateTime(document.updatedAt)}")
             }
+
+            Text("Celkem kusů: ${formatQuantity(document.totalQuantity)}")
+            Text("Celková hmotnost: ${formatWeight(document.totalWeight)} kg")
 
             if (!document.note.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))

@@ -9,3 +9,9 @@ fun formatQuantity(value: String): String {
         value
     }
 }
+
+fun formatWeight(value: String): String {
+    val number = value.replace(",", ".").toDoubleOrNull() ?: return value
+    return String.format(java.util.Locale.US, "%.1f", number)
+        .replace(".", ",")
+}

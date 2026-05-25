@@ -1,0 +1,25 @@
+{
+  "name": "sklad-server",
+  "version": "1.0.0",
+  "description": "Lokální server pro mobilní skladový systém",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:reset": "psql -U postgres -d sklad -f schema.sql",
+    "db:seed": "psql -U postgres -d sklad -f seed.sql",
+    "db:setup": "npm run db:reset && npm run db:seed"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.3",
+    "helmet": "^7.1.0",
+    "multer": "^2.1.1",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
